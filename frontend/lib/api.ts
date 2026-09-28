@@ -1,4 +1,4 @@
-import type { DemoStep, Health } from "@/lib/types";
+import type { DemoStatus, DemoStep, Health } from "@/lib/types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -17,6 +17,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const sentinelApi = {
   health: () => request<Health>("/api/health"),
+  demoStatus: () => request<DemoStatus>("/api/demo/status"),
   step: () => request<DemoStep>("/api/demo/step", { method: "POST" }),
   reset: () => request<void>("/api/demo/reset", { method: "POST" }),
 };

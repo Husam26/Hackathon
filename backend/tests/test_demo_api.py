@@ -22,6 +22,14 @@ def test_demo_replays_learning_curve(tmp_path: Path) -> None:
             "analysis": "grounded-rules",
         }
 
+        initial_status = client.get("/api/demo/status")
+        assert initial_status.status_code == 200
+        assert initial_status.json() == {
+            "position": 0,
+            "total_steps": 5,
+            "next_incident_id": "INC-1047",
+        }
+
         results = [client.post("/api/demo/step") for _ in range(5)]
         assert all(response.status_code == 200 for response in results)
         payloads = [response.json() for response in results]
@@ -39,4 +47,5 @@ def test_demo_replays_learning_curve(tmp_path: Path) -> None:
         assert client.post("/api/demo/step").status_code == 409
         assert len(client.get("/api/incidents").json()) == 5
         assert client.post("/api/demo/reset").status_code == 204
+        assert client.get("/api/demo/status").json()["position"] == 0
         assert client.get("/api/incidents").json() == []

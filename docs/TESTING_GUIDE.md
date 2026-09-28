@@ -50,6 +50,15 @@ Invoke-RestMethod http://localhost:8000/api/health | ConvertTo-Json -Depth 5
 Expected status is `ok`. Provider values may be `local`/`grounded-rules` offline,
 `hindsight`/`groq` live, or Gemini when only Gemini is configured.
 
+## Frontend walkthrough
+
+1. Open `http://localhost:3000` or `http://127.0.0.1:3000`.
+2. Confirm the top-right status says **Command channel online** and shows the configured providers.
+3. To guarantee a cold demo, click **Reset memory**. This clears the configured Hindsight test bank.
+4. Click **Run incident 1**, wait for the analysis, then inspect the alert, recommended action, and memory evidence panels.
+5. Continue with the next incident button until the sequence reads `5/5`. The scenario rail tracks backend progress even after a page refresh.
+6. If an error banner appears, keep it visible and inspect the backend terminal; do not repeatedly click the button while it is analyzing.
+
 ## Seed live memory
 
 Only run this with Hindsight credentials configured:

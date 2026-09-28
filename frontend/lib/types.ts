@@ -66,6 +66,12 @@ export interface Incident {
   root_cause: string | null;
 }
 
+export interface DemoStatus {
+  position: number;
+  total_steps: number;
+  next_incident_id: string | null;
+}
+
 export interface DemoStep {
   step: number;
   total_steps: number;

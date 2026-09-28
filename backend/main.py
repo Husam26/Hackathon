@@ -16,7 +16,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import Settings, get_settings
-from backend.demo import DemoController, DemoStepResult
+from backend.demo import DemoController, DemoStatus, DemoStepResult
 from backend.gemini_client import FallbackAnalyzer, GeminiAnalyzer
 from backend.groq_client import GroqAnalyzer, IncidentAnalyzer, RulesAnalyzer
 from backend.memory_client import (
@@ -135,6 +135,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/incidents", response_model=list[IncidentRecord])
     async def list_incidents(request: Request) -> list[IncidentRecord]:
         return request.app.state.services.store.list()
+
+    @app.get("/api/demo/status", response_model=DemoStatus)
+    async def demo_status(request: Request) -> DemoStatus:
+        return request.app.state.services.demo.status()
 
     @app.post("/api/demo/reset", status_code=status.HTTP_204_NO_CONTENT)
     async def reset_demo(request: Request) -> None:

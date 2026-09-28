@@ -19,6 +19,12 @@ class DemoStepResult(BaseModel):
     analysis: AnalysisResult
 
 
+class DemoStatus(BaseModel):
+    position: int
+    total_steps: int
+    next_incident_id: str | None
+
+
 class DemoController:
     def __init__(self, orchestrator: SentinelOrchestrator) -> None:
         self.orchestrator = orchestrator
@@ -29,6 +35,18 @@ class DemoController:
             key=lambda incident: incident.seq,
         )
         self.position = 0
+
+    def status(self) -> DemoStatus:
+        next_incident = (
+            self.incidents[self.position]
+            if self.position < len(self.incidents)
+            else None
+        )
+        return DemoStatus(
+            position=self.position,
+            total_steps=len(self.incidents),
+            next_incident_id=next_incident.id if next_incident else None,
+        )
 
     async def reset(self) -> None:
         await self.orchestrator.memory.clear()

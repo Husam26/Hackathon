@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MttrChart } from "@/components/mttr-chart";
 import { sentinelApi } from "@/lib/api";
 import { formatMetric, formatPercent, humanize } from "@/lib/format";
-import type { DemoStep, Health, RecalledMemory } from "@/lib/types";
+import type { DemoStatus, DemoStep, Health, RecalledMemory } from "@/lib/types";
 
 const demoLabels = [
   "Founding incident",
@@ -53,13 +53,21 @@ function MemoryCard({ memory }: { memory: RecalledMemory }) {
 
 export function SentinelConsole() {
   const [health, setHealth] = useState<Health | null>(null);
+  const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [history, setHistory] = useState<DemoStep[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const active = history.at(-1) ?? null;
+  const demoPosition = demoStatus?.position ?? history.length;
+  const demoTotal = demoStatus?.total_steps ?? 5;
 
   useEffect(() => {
-    sentinelApi.health().then(setHealth).catch((reason: Error) => setError(reason.message));
+    Promise.all([sentinelApi.health(), sentinelApi.demoStatus()])
+      .then(([nextHealth, nextDemoStatus]) => {
+        setHealth(nextHealth);
+        setDemoStatus(nextDemoStatus);
+      })
+      .catch((reason: Error) => setError(reason.message));
   }, []);
 
   const step = useCallback(async () => {
@@ -68,6 +76,11 @@ export function SentinelConsole() {
     try {
       const result = await sentinelApi.step();
       setHistory((current) => [...current, result]);
+      setDemoStatus({
+        position: result.step,
+        total_steps: result.total_steps,
+        next_incident_id: result.step < result.total_steps ? null : null,
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to run the next incident.");
     } finally {
@@ -81,6 +94,7 @@ export function SentinelConsole() {
     try {
       await sentinelApi.reset();
       setHistory([]);
+      setDemoStatus({ position: 0, total_steps: 5, next_incident_id: "INC-1047" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to reset the demo.");
     } finally {
@@ -125,12 +139,12 @@ export function SentinelConsole() {
           <p>Sentinel turns prior response evidence into grounded action—without inventing history.</p>
         </div>
         <div className="controls">
-          <button className="button secondary" onClick={reset} disabled={busy || history.length === 0}>
+          <button className="button secondary" onClick={reset} disabled={busy}>
             <RefreshCcw size={15} /> Reset memory
           </button>
-          <button className="button primary" onClick={step} disabled={busy || history.length === 5}>
+          <button className="button primary" onClick={step} disabled={busy || demoPosition >= demoTotal}>
             {busy ? <Activity size={15} className="spin" /> : <Play size={15} />}
-            {busy ? "Analyzing" : history.length === 5 ? "Demo complete" : `Run incident ${history.length + 1}`}
+            {busy ? "Analyzing" : demoPosition >= demoTotal ? "Demo complete" : `Run incident ${demoPosition + 1}`}
           </button>
         </div>
       </section>
@@ -164,16 +178,16 @@ export function SentinelConsole() {
         <aside className="scenario-rail panel">
           <div className="panel-title">
             <div><span className="eyebrow">Demo sequence</span><h2>Learning curve</h2></div>
-            <span>{history.length}/5</span>
+            <span>{demoPosition}/{demoTotal}</span>
           </div>
           <ol className="scenario-list">
             {demoLabels.map((label, index) => {
-              const completed = index < history.length;
-              const current = index === history.length - 1;
+              const completed = index < demoPosition;
+              const current = index === demoPosition - 1;
               return (
                 <li key={label} className={`${completed ? "completed" : ""} ${current ? "current" : ""}`}>
                   <span className="step-marker">{completed ? <CheckCircle2 size={17} /> : index + 1}</span>
-                  <div><strong>{label}</strong><span>{history[index]?.incident.id ?? "Queued"}</span></div>
+                  <div><strong>{label}</strong><span>{history[index]?.incident.id ?? (completed ? "Completed" : "Queued")}</span></div>
                   {current && <ChevronRight size={16} />}
                 </li>
               );
@@ -192,7 +206,7 @@ export function SentinelConsole() {
             <div className="empty-state">
               <TerminalSquare size={31} />
               <h3>Ready for the first page</h3>
-              <p>Run incident 1 to begin with a cold memory bank and watch Sentinel learn.</p>
+              <p>1. Run the next incident. 2. Review the evidence and recommended action. 3. Continue through all five steps. Use Reset memory to start a fresh demo; it clears the configured demo memory bank.</p>
             </div>
           ) : (
             <div className="thread">

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'sentinel.db').as_posix()}"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
@@ -34,9 +34,12 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [
+        origins = {
             origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
-        ]
+        }
+        if self.environment == "development":
+            origins.update({"http://localhost:3000", "http://127.0.0.1:3000"})
+        return sorted(origins)
 
 
 @lru_cache
