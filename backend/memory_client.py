@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Iterable
 from datetime import datetime, timezone
@@ -148,25 +149,30 @@ class HindsightMemoryClient:
             "context": payload.context,
             "timestamp": payload.timestamp.isoformat() if payload.timestamp else None,
             "document_id": document_id,
+            "tags": payload.tags,
         }
         response = await self._client.post(
-            f"{self._bank_path}/memories", json={"items": [item], "tags": payload.tags}
+            f"{self._bank_path}/memories", json={"items": [item]}
         )
         response.raise_for_status()
         body = response.json()
         return str(body.get("operation_id") or body.get("id") or document_id)
 
     async def recall(self, query: RecallQuery) -> list[RecalledMemory]:
-        response = await self._client.post(
-            f"{self._bank_path}/memories/recall",
-            json={
-                "query": query.query,
-                "tags": query.tags,
-                "tags_match": "all_strict",
-                "types": query.fact_types,
-                "max_tokens": 4096,
-            },
-        )
+        request_body = {
+            "query": query.query,
+            "tags": query.tags,
+            "tags_match": "all_strict",
+            "types": query.fact_types,
+            "max_tokens": 4096,
+        }
+        for attempt in range(3):
+            response = await self._client.post(
+                f"{self._bank_path}/memories/recall", json=request_body
+            )
+            if response.status_code < 500 or attempt == 2:
+                break
+            await asyncio.sleep(0.25 * (attempt + 1))
         response.raise_for_status()
         memories: list[RecalledMemory] = []
         for item in response.json().get("results", [])[: query.limit]:
@@ -179,7 +185,7 @@ class HindsightMemoryClient:
                     tags=item.get("tags") or [],
                     recall_score=max(0, min(1, float(score))),
                     timestamp=item.get("occurred_start") or item.get("mentioned_at"),
-                    fact_type=item.get("type"),
+                    fact_type=item.get("fact_type") or item.get("type"),
                 )
             )
         return memories

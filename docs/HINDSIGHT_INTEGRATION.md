@@ -70,9 +70,9 @@ Analysis fetches it with:
 
 The model is not sent to analysis unless recall produced at least two memories. This prevents a persisted summary from making a freshly reset demo appear informed before evidence has been recalled.
 
-## Groq boundary
+## AI analyzer boundary
 
-The default `llama-3.3-70b-versatile` path uses JSON-object mode. The prompt includes the alert, recalled memories, mental model, and the `SentinelResponse` JSON schema. Pydantic performs actual schema validation and the client retries once on contract failure.
+The default Groq path uses `openai/gpt-oss-120b` with JSON-object mode. The prompt includes the alert, recalled memories, mental model, and the `SentinelResponse` JSON schema. Pydantic performs actual schema validation and the client retries once on contract failure. When `GEMINI_API_KEY` is configured, `gemini-3.6-flash` is a provider-level failover after a Groq HTTP or contract failure; it is subject to the same citation allow-list.
 
 After parsing, Sentinel verifies every `cited_memory_id` and every hypothesis evidence ID belongs to the current recall set. A response with an invented incident ID is rejected.
 

@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import Settings, get_settings
 from backend.demo import DemoController, DemoStepResult
+from backend.gemini_client import FallbackAnalyzer, GeminiAnalyzer
 from backend.groq_client import GroqAnalyzer, IncidentAnalyzer, RulesAnalyzer
 from backend.memory_client import (
     HindsightMemoryClient,
@@ -51,7 +52,7 @@ def build_services(settings: Settings) -> Services:
         )
     else:
         memory = LocalMemoryClient()
-    analyzer: IncidentAnalyzer = (
+    groq = (
         GroqAnalyzer(
             api_key=settings.groq_api_key,
             model=settings.groq_model,
@@ -59,8 +60,26 @@ def build_services(settings: Settings) -> Services:
             timeout=settings.request_timeout_seconds,
         )
         if settings.groq_api_key
-        else RulesAnalyzer()
+        else None
     )
+    gemini = (
+        GeminiAnalyzer(
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_model,
+            base_url=settings.gemini_base_url,
+            timeout=settings.request_timeout_seconds,
+        )
+        if settings.gemini_api_key
+        else None
+    )
+    if groq and gemini:
+        analyzer: IncidentAnalyzer = FallbackAnalyzer(groq, gemini)
+    elif groq:
+        analyzer = groq
+    elif gemini:
+        analyzer = gemini
+    else:
+        analyzer = RulesAnalyzer()
     store = IncidentStore(settings.database_url)
     store.create()
     orchestrator = SentinelOrchestrator(

@@ -11,7 +11,9 @@ Sentinel selects providers from environment variables and reports the active cho
 | No API keys | In-process memory | Grounded deterministic rules | Development, tests, and an offline fallback |
 | `HINDSIGHT_API_KEY` only | Hindsight Cloud | Grounded deterministic rules | Memory integration testing without LLM spend |
 | `GROQ_API_KEY` only | In-process memory | Groq JSON mode | Prompt and response-contract testing |
-| Both keys | Hindsight Cloud | Groq JSON mode + Pydantic validation | Live hackathon demo |
+| `GEMINI_API_KEY` only | In-process memory | Gemini JSON mode | Alternate live model testing |
+| Hindsight + Groq | Hindsight Cloud | Groq JSON mode + Pydantic validation | Live hackathon demo |
+| Hindsight + Groq + Gemini | Hindsight Cloud | Groq primary with Gemini failover | Resilient live demo |
 
 Set `HINDSIGHT_BASE_URL=http://localhost:8888` to use a local Hindsight deployment without a cloud key.
 
@@ -19,7 +21,7 @@ Set `HINDSIGHT_BASE_URL=http://localhost:8888` to use a local Hindsight deployme
 
 - `schemas.py` rejects unknown fields and validates confidence ranges, incident IDs, severities, and tag uniqueness.
 - `memory_client.py` provides the local and Hindsight adapters. Retains use stable `document_id` values, making seeding idempotent.
-- `groq_client.py` validates JSON-mode responses with Pydantic and rejects citations that were not present in recall results.
+- `groq_client.py` and `gemini_client.py` validate JSON-mode responses with Pydantic and reject citations that were not present in recall results. Groq is primary; Gemini is optional failover.
 - `store.py` persists canonical incident records and retained-memory IDs in SQLite.
 - `orchestrator.py` builds the recall query, retrieves evidence, conditionally loads the configured mental model, and invokes analysis.
 - `demo.py` replays only incidents 1–5. Each alert is analyzed before its resolution is retained, preserving the learning curve.

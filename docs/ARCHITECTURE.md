@@ -12,7 +12,7 @@ Next.js operations console
                  ▼
 FastAPI ── SentinelOrchestrator
   ├─ MemoryProvider ── Hindsight Cloud or in-process fallback
-  ├─ IncidentAnalyzer ── Groq or grounded-rules fallback
+  ├─ IncidentAnalyzer ── Groq primary, Gemini failover, or grounded-rules fallback
   └─ IncidentStore ── SQLite / SQLModel
 ```
 
@@ -22,7 +22,7 @@ FastAPI ── SentinelOrchestrator
 2. Build a query from service, severity, timestamp, signals, and recent deploys.
 3. Recall service-scoped `experience`, `world`, and `observation` facts.
 4. Load the configured mental model only when at least two memories were recalled.
-5. Analyze with Groq or the deterministic grounded fallback.
+5. Analyze with Groq, fail over to Gemini for a provider/contract failure when configured, or use deterministic grounded rules without LLM keys.
 6. Reject malformed output or citations outside the retrieved-memory allow-list.
 7. Return the structured analysis and evidence to the console.
 8. After resolution, retain the narrative with a stable document ID and upsert the canonical SQLite record.

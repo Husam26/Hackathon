@@ -8,7 +8,7 @@ The five-step Northwind Pay demo shows the learning curve directly: cold-start t
 
 - FastAPI REST and WebSocket backend with strict Pydantic contracts.
 - Hindsight Cloud REST adapter plus an explicit offline/local-memory fallback.
-- Groq JSON-mode analysis with validation, retry, and citation allow-listing.
+- Groq JSON-mode primary analysis with validation, retry, and citation allow-listing, plus optional Gemini failover.
 - Grounded deterministic analyzer for tests and keyless development.
 - SQLite system of record with idempotent incident upserts.
 - Seven-incident synthetic corpus, including five scripted incidents and two distractors.
@@ -37,11 +37,12 @@ npm run dev
 
 Open `http://localhost:3000` and use **Run incident** to replay the five-step scenario. Backend OpenAPI documentation is at `http://localhost:8000/docs`.
 
-## Live Hindsight + Groq mode
+## Live Hindsight + AI analysis mode
 
 ```powershell
 Copy-Item backend\.env.example backend\.env
-# Add GROQ_API_KEY and HINDSIGHT_API_KEY to backend\.env
+# Add GROQ_API_KEY and HINDSIGHT_API_KEY to backend\.env.
+# Optionally add GEMINI_API_KEY for automatic LLM failover.
 python -m backend.seed_incidents
 python -m uvicorn backend.main:app --reload
 ```
@@ -52,7 +53,7 @@ Before presenting a live integration, check `http://localhost:8000/api/health` r
 {"status":"ok","providers":{"memory":"hindsight","analysis":"groq"}}
 ```
 
-The checked-in default model is `llama-3.3-70b-versatile`, which uses Groq JSON-object mode. Sentinel then validates the response with Pydantic and rejects citations that were not retrieved from memory.
+The checked-in Groq default is `openai/gpt-oss-120b`, selected because the previously configured Llama model was unavailable for the configured key. Add `GEMINI_API_KEY` to enable `gemini-3.6-flash` as a backup; when both are configured, Groq is tried first and Gemini is used only for a Groq HTTP/contract failure. Sentinel validates every response with Pydantic and rejects citations that were not retrieved from memory.
 
 ## Verification
 
