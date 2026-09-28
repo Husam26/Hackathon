@@ -1,0 +1,237 @@
+{
+  "company": "Northwind Pay",
+  "bank_id": "acme-sre",
+  "incidents": [
+    {
+      "id": "INC-1047",
+      "seq": 1,
+      "title": "Checkout latency after payments v2.3 deploy",
+      "is_recurring_spine": true,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-09-10T02:14:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 3200, "error_rate_5xx": 0.12, "rps": 4200 },
+        "signals": ["p99 latency 3.2s", "5xx rate 12%", "Redis pool wait time rising"],
+        "recent_deploys": [
+          { "service": "payments-service", "version": "v2.3", "at": "2026-09-10T01:58:00Z" }
+        ]
+      },
+      "timeline": [
+        { "at": "02:14", "event": "PagerDuty alert: checkout-service SEV-2" },
+        { "at": "02:31", "event": "Engineer correlates the alert with payments-service v2.3" },
+        { "at": "02:49", "event": "Redis connection pool saturation confirmed" },
+        { "at": "03:20", "event": "Payments rolled back to v2.2; checkout restarted" },
+        { "at": "03:44", "event": "Service recovered; JIRA-891 filed" }
+      ],
+      "root_cause": "Unbounded Redis connections in payments-service exhausted capacity used by checkout-service.",
+      "contributing_factors": ["Traffic overlapped the 02:00 UTC nightly settlement batch."],
+      "mitigation": "Rolled back payments-service to v2.2 and restarted checkout-service to drain connections.",
+      "permanent_fix": { "status": "open", "ref": "JIRA-891", "desc": "Add a bounded pool and connection timeout." },
+      "mttr_minutes": 90,
+      "artifacts": { "pr": null, "runbook": "runbooks/redis-pool.md", "jira": "JIRA-891" },
+      "retain": {
+        "content": "INCIDENT INC-1047 (RESOLVED). checkout-service p99 reached 3.2s and 5xx reached 12% at 02:14 UTC. payments-service v2.3, deployed at 01:58, opened unbounded Redis connections while the nightly settlement batch was active. ROOT CAUSE: Redis connection capacity exhaustion caused by payments-service. MITIGATION THAT WORKED: roll back payments to v2.2 and restart checkout-service. MTTR: 90 minutes. PERMANENT FIX: JIRA-891, bounded pool and connection timeout, remains open.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-10T02:14:00Z",
+        "tags": ["service:checkout-service", "trigger:payments-service-deploy", "root-cause:redis-pool-exhaustion", "symptom:high-latency", "symptom:5xx", "time-window:overnight-batch", "severity:sev-2", "status:resolved", "jira:JIRA-891"]
+      }
+    },
+    {
+      "id": "INC-1052",
+      "seq": 2,
+      "title": "Orders writes blocked by schema migration",
+      "is_recurring_spine": false,
+      "alert": {
+        "service": "orders-service",
+        "fired_at": "2026-09-12T15:22:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 5100, "error_rate_5xx": 0.08, "db_lock_waiters": 146 },
+        "signals": ["write latency 5.1s", "query timeouts", "Postgres lock waiters rising"],
+        "recent_deploys": []
+      },
+      "timeline": [
+        { "at": "15:22", "event": "Orders write-latency alert fired" },
+        { "at": "15:39", "event": "Database activity showed an ACCESS EXCLUSIVE lock" },
+        { "at": "16:11", "event": "Long-running ALTER TABLE migration terminated" },
+        { "at": "16:37", "event": "Write latency returned to baseline" }
+      ],
+      "root_cause": "A long-running ALTER TABLE migration held an ACCESS EXCLUSIVE lock on the orders table.",
+      "contributing_factors": ["The migration was scheduled during business traffic."],
+      "mitigation": "Terminated the migration and rescheduled it for the maintenance window.",
+      "permanent_fix": { "status": "done", "ref": "DB-442", "desc": "Require lock-timeout and off-peak scheduling for DDL." },
+      "mttr_minutes": 75,
+      "artifacts": { "pr": "PR-2041", "runbook": "runbooks/postgres-locks.md", "jira": "DB-442" },
+      "retain": {
+        "content": "INCIDENT INC-1052 (RESOLVED). orders-service writes timed out at 15:22 UTC. ROOT CAUSE: a long-running ALTER TABLE migration held an ACCESS EXCLUSIVE Postgres lock. MITIGATION THAT WORKED: terminate the migration and reschedule it off-peak. MTTR: 75 minutes. This incident was unrelated to Redis or payments deployments.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-12T15:22:00Z",
+        "tags": ["service:orders-service", "trigger:schema-migration", "root-cause:postgres-lock", "symptom:high-latency", "symptom:query-timeout", "time-window:business-hours", "severity:sev-2", "status:resolved", "jira:DB-442"]
+      }
+    },
+    {
+      "id": "INC-1061",
+      "seq": 3,
+      "title": "Checkout reads delayed by replica lag",
+      "is_recurring_spine": false,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-09-17T15:07:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 2800, "error_rate_5xx": 0.03, "replica_lag_seconds": 94 },
+        "signals": ["p99 latency 2.8s", "stale cart reads", "read replica lag 94s"],
+        "recent_deploys": []
+      },
+      "timeline": [
+        { "at": "15:07", "event": "Checkout latency alert fired" },
+        { "at": "15:18", "event": "No recent deploy or Redis saturation found" },
+        { "at": "15:31", "event": "Replica lag traced to a failed vacuum and write burst" },
+        { "at": "15:47", "event": "Reads shifted to a healthy replica" }
+      ],
+      "root_cause": "A failed vacuum followed by a write burst caused checkout's Postgres read replica to lag.",
+      "contributing_factors": ["Replica-lag alert threshold was too high."],
+      "mitigation": "Shifted checkout reads to a healthy replica and restarted vacuum on the lagging node.",
+      "permanent_fix": { "status": "done", "ref": "DB-451", "desc": "Lower replica-lag alert threshold and repair vacuum monitoring." },
+      "mttr_minutes": 40,
+      "artifacts": { "pr": "PR-2088", "runbook": "runbooks/replica-lag.md", "jira": "DB-451" },
+      "retain": {
+        "content": "INCIDENT INC-1061 (RESOLVED). checkout-service p99 reached 2.8s at 15:07 UTC with stale reads. There was no recent deploy and Redis was healthy. ROOT CAUSE: checkout Postgres read-replica lag after a failed vacuum and write burst. MITIGATION THAT WORKED: shift reads to a healthy replica and restart vacuum. MTTR: 40 minutes.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-17T15:07:00Z",
+        "tags": ["service:checkout-service", "trigger:failed-vacuum", "root-cause:postgres-replica-lag", "symptom:high-latency", "symptom:stale-reads", "time-window:business-hours", "severity:sev-2", "status:resolved", "jira:DB-451"]
+      }
+    },
+    {
+      "id": "INC-1074",
+      "seq": 4,
+      "title": "Checkout Redis saturation after payments v2.4",
+      "is_recurring_spine": true,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-09-22T02:09:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 3500, "error_rate_5xx": 0.1, "rps": 4500 },
+        "signals": ["p99 latency 3.5s", "5xx rate 10%", "Redis connection acquisition time rising"],
+        "recent_deploys": [
+          { "service": "payments-service", "version": "v2.4", "at": "2026-09-22T01:51:00Z" }
+        ]
+      },
+      "timeline": [
+        { "at": "02:09", "event": "Checkout SEV-2 alert fired" },
+        { "at": "02:13", "event": "INC-1047 signature recognized" },
+        { "at": "02:17", "event": "Payments v2.4 rolled back and checkout restarted" },
+        { "at": "02:24", "event": "Service recovered" }
+      ],
+      "root_cause": "Unbounded Redis connections in payments-service exhausted capacity used by checkout-service.",
+      "contributing_factors": ["Traffic overlapped the 02:00 UTC nightly settlement batch.", "JIRA-891 was not implemented before the deploy."],
+      "mitigation": "Rolled back payments-service to v2.3 and restarted checkout-service to drain connections.",
+      "permanent_fix": { "status": "open", "ref": "JIRA-891", "desc": "Add a bounded pool and connection timeout." },
+      "mttr_minutes": 15,
+      "artifacts": { "pr": null, "runbook": "runbooks/redis-pool.md", "jira": "JIRA-891" },
+      "retain": {
+        "content": "INCIDENT INC-1074 (RESOLVED). checkout-service p99 reached 3.5s and 5xx reached 10% at 02:09 UTC after payments-service v2.4 deployed at 01:51. ROOT CAUSE: the same Redis connection exhaustion pattern as INC-1047 during settlement traffic. MITIGATION THAT WORKED: roll back payments and restart checkout-service. MTTR: 15 minutes. JIRA-891 remains open.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-22T02:09:00Z",
+        "tags": ["service:checkout-service", "trigger:payments-service-deploy", "root-cause:redis-pool-exhaustion", "symptom:high-latency", "symptom:5xx", "time-window:overnight-batch", "severity:sev-2", "status:resolved", "jira:JIRA-891"]
+      }
+    },
+    {
+      "id": "INC-1089",
+      "seq": 5,
+      "title": "Checkout Redis saturation after payments v2.5",
+      "is_recurring_spine": true,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-09-29T02:11:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 3300, "error_rate_5xx": 0.11, "rps": 4600 },
+        "signals": ["p99 latency 3.3s", "5xx rate 11%", "Redis pool wait time rising"],
+        "recent_deploys": [
+          { "service": "payments-service", "version": "v2.5", "at": "2026-09-29T01:55:00Z" }
+        ]
+      },
+      "timeline": [
+        { "at": "02:11", "event": "Checkout SEV-2 alert fired" },
+        { "at": "02:12", "event": "Recurring signature identified from retained incidents" },
+        { "at": "02:13", "event": "Payments v2.5 rollback and checkout restart initiated" },
+        { "at": "02:14", "event": "Service recovered" }
+      ],
+      "root_cause": "Unbounded Redis connections in payments-service exhausted capacity used by checkout-service.",
+      "contributing_factors": ["Traffic overlapped the 02:00 UTC nightly settlement batch.", "JIRA-891 remained open for six weeks."],
+      "mitigation": "Rolled back payments-service to v2.4 and restarted checkout-service to drain connections.",
+      "permanent_fix": { "status": "open", "ref": "JIRA-891", "desc": "Add a bounded pool and connection timeout." },
+      "mttr_minutes": 3,
+      "artifacts": { "pr": null, "runbook": "runbooks/redis-pool.md", "jira": "JIRA-891" },
+      "retain": {
+        "content": "INCIDENT INC-1089 (RESOLVED). checkout-service p99 reached 3.3s and 5xx reached 11% at 02:11 UTC after payments-service v2.5 deployed at 01:55. ROOT CAUSE: the recurring Redis connection exhaustion pattern from INC-1047 and INC-1074. MITIGATION THAT WORKED: roll back payments and restart checkout-service. MTTR: 3 minutes. JIRA-891 remains open after six weeks.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-29T02:11:00Z",
+        "tags": ["service:checkout-service", "trigger:payments-service-deploy", "root-cause:redis-pool-exhaustion", "symptom:high-latency", "symptom:5xx", "time-window:overnight-batch", "severity:sev-2", "status:resolved", "jira:JIRA-891"]
+      }
+    },
+    {
+      "id": "INC-1038",
+      "seq": 90,
+      "title": "Catalog latency caused by cache stampede",
+      "is_recurring_spine": false,
+      "alert": {
+        "service": "catalog-service",
+        "fired_at": "2026-09-05T10:42:00Z",
+        "severity": "SEV-3",
+        "metrics": { "p99_latency_ms": 1800, "error_rate_5xx": 0.01, "cache_hit_ratio": 0.14 },
+        "signals": ["cache hit ratio 14%", "origin CPU 91%"],
+        "recent_deploys": []
+      },
+      "timeline": [{ "at": "10:42", "event": "Catalog latency alert fired" }, { "at": "11:14", "event": "Cache stampede mitigated" }],
+      "root_cause": "A bulk cache expiry caused a request stampede against catalog storage.",
+      "contributing_factors": ["Cache keys used the same TTL without jitter."],
+      "mitigation": "Warmed popular keys and rate-limited origin requests.",
+      "permanent_fix": { "status": "done", "ref": "CAT-113", "desc": "Add TTL jitter and request coalescing." },
+      "mttr_minutes": 32,
+      "artifacts": { "pr": "PR-1984", "runbook": "runbooks/cache-stampede.md", "jira": "CAT-113" },
+      "retain": {
+        "content": "INCIDENT INC-1038 (RESOLVED). catalog-service slowed after bulk cache expiry. ROOT CAUSE: cache stampede. MITIGATION: warm popular keys and rate-limit origin traffic. MTTR: 32 minutes.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-3.",
+        "timestamp": "2026-09-05T10:42:00Z",
+        "tags": ["service:catalog-service", "root-cause:cache-stampede", "symptom:high-latency", "severity:sev-3", "status:resolved", "jira:CAT-113"]
+      }
+    },
+    {
+      "id": "INC-1068",
+      "seq": 91,
+      "title": "Payments errors caused by certificate expiry",
+      "is_recurring_spine": false,
+      "alert": {
+        "service": "payments-service",
+        "fired_at": "2026-09-19T08:02:00Z",
+        "severity": "SEV-1",
+        "metrics": { "p99_latency_ms": 900, "error_rate_5xx": 0.31, "tls_handshake_failures": 772 },
+        "signals": ["5xx rate 31%", "TLS handshake failures", "processor requests rejected"],
+        "recent_deploys": []
+      },
+      "timeline": [{ "at": "08:02", "event": "Payments SEV-1 alert fired" }, { "at": "08:23", "event": "Processor client certificate rotated" }],
+      "root_cause": "The payment processor client certificate expired.",
+      "contributing_factors": ["Certificate-expiry alert was routed to an inactive channel."],
+      "mitigation": "Rotated the client certificate and recycled payment workers.",
+      "permanent_fix": { "status": "done", "ref": "SEC-228", "desc": "Automate certificate rotation and paging." },
+      "mttr_minutes": 21,
+      "artifacts": { "pr": "PR-2112", "runbook": "runbooks/cert-rotation.md", "jira": "SEC-228" },
+      "retain": {
+        "content": "INCIDENT INC-1068 (RESOLVED). payments-service returned 31% 5xx due to TLS failures. ROOT CAUSE: an expired processor client certificate. MITIGATION: rotate the certificate and recycle workers. MTTR: 21 minutes.",
+        "context": "SRE production incident postmortem. Environment: prod. Severity: SEV-1.",
+        "timestamp": "2026-09-19T08:02:00Z",
+        "tags": ["service:payments-service", "root-cause:certificate-expiry", "symptom:5xx", "severity:sev-1", "status:resolved", "jira:SEC-228"]
+      }
+    }
+  ],
+  "world_facts": [
+    {
+      "content": "Northwind Pay's nightly settlement batch starts at 02:00 UTC and increases load on the Redis cluster shared by checkout-service and payments-service.",
+      "tags": ["type:world-fact", "service:checkout-service", "service:payments-service", "infra:redis", "time-window:overnight-batch"]
+    },
+    {
+      "content": "JIRA-891 tracks bounded Redis connection pools and acquisition timeouts for payments-service; it was still open on 2026-09-29.",
+      "tags": ["type:world-fact", "service:payments-service", "root-cause:redis-pool-exhaustion", "jira:JIRA-891"]
+    }
+  ]
+}
