@@ -57,6 +57,17 @@ export interface AnalysisResult {
   } | null;
 }
 
+export interface ManualIncidentInput {
+  title: string;
+  service: string;
+  severity: "SEV-1" | "SEV-2" | "SEV-3" | "SEV-4";
+  occurred_at?: string;
+  signals: string[];
+  root_cause: string;
+  mitigation: string;
+  mttr_minutes?: number;
+}
+
 export interface Incident {
   id: string;
   seq: number;
@@ -64,6 +75,8 @@ export interface Incident {
   mttr_minutes: number | null;
   alert: Alert;
   root_cause: string | null;
+  mitigation: string | null;
+  retained_memory_id: string | null;
 }
 
 export interface DemoStatus {

@@ -19,6 +19,8 @@ from backend.config import Settings, get_settings
 from backend.demo import DemoController, DemoStatus, DemoStepResult
 from backend.gemini_client import FallbackAnalyzer, GeminiAnalyzer
 from backend.groq_client import GroqAnalyzer, IncidentAnalyzer, RulesAnalyzer
+from backend.manual_incident import ManualIncidentRequest, build_manual_incident
+
 from backend.memory_client import (
     HindsightMemoryClient,
     LocalMemoryClient,
@@ -131,6 +133,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def resolve(incident: IncidentRecord, request: Request) -> dict[str, str]:
         memory_id = await request.app.state.services.orchestrator.resolve(incident)
         return {"incident_id": incident.id, "memory_id": memory_id}
+
+    @app.post(
+        "/api/incidents/manual",
+        response_model=IncidentRecord,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_manual_incident(
+        payload: ManualIncidentRequest, request: Request
+    ) -> IncidentRecord:
+        incident = build_manual_incident(payload)
+        memory_id = await request.app.state.services.orchestrator.resolve(incident)
+        return incident.model_copy(update={"retained_memory_id": memory_id})
 
     @app.get("/api/incidents", response_model=list[IncidentRecord])
     async def list_incidents(request: Request) -> list[IncidentRecord]:

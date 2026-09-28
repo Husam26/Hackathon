@@ -1,4 +1,4 @@
-import type { DemoStatus, DemoStep, Health } from "@/lib/types";
+import type { DemoStatus, DemoStep, Health, Incident, ManualIncidentInput } from "@/lib/types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -20,4 +20,10 @@ export const sentinelApi = {
   demoStatus: () => request<DemoStatus>("/api/demo/status"),
   step: () => request<DemoStep>("/api/demo/step", { method: "POST" }),
   reset: () => request<void>("/api/demo/reset", { method: "POST" }),
+  incidents: () => request<Incident[]>("/api/incidents"),
+  createManualIncident: (payload: ManualIncidentInput) =>
+    request<Incident>("/api/incidents/manual", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

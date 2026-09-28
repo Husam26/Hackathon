@@ -59,6 +59,14 @@ Expected status is `ok`. Provider values may be `local`/`grounded-rules` offline
 5. Continue with the next incident button until the sequence reads `5/5`. The scenario rail tracks backend progress even after a page refresh.
 6. If an error banner appears, keep it visible and inspect the backend terminal; do not repeatedly click the button while it is analyzing.
 
+## Manual incident and history workflow
+
+1. In the **Manual intake** panel, enter a title, service, severity, at least one signal, root cause, and mitigation.
+2. Select **Save incident to memory**.
+3. Confirm the incident appears in the **Incident ledger**.
+4. Select it in the ledger and verify its service, signals, root cause, mitigation, and MTTR details appear.
+5. Run a later alert for the same service to let Sentinel recall the newly retained record.
+
 ## Seed live memory
 
 Only run this with Hindsight credentials configured:

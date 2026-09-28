@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { IncidentWorkbench } from "@/components/incident-workbench";
+
 import { MttrChart } from "@/components/mttr-chart";
 import { sentinelApi } from "@/lib/api";
 import { formatMetric, formatPercent, humanize } from "@/lib/format";
@@ -76,13 +78,15 @@ export function SentinelConsole() {
     try {
       const result = await sentinelApi.step();
       setHistory((current) => [...current, result]);
-      setDemoStatus({
-        position: result.step,
-        total_steps: result.total_steps,
-        next_incident_id: result.step < result.total_steps ? null : null,
-      });
+      setDemoStatus(await sentinelApi.demoStatus());
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to run the next incident.");
+      const message = reason instanceof Error ? reason.message : "Unable to run the next incident.";
+      if (message.includes("demo is complete")) {
+        sentinelApi.demoStatus().then(setDemoStatus).catch(() => undefined);
+        setError("Demo complete. Select Reset memory to start a new five-step run.");
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -271,6 +275,8 @@ export function SentinelConsole() {
           </div>
         </aside>
       </div>
+
+      <IncidentWorkbench refreshKey={demoPosition} />
 
       <footer>
         <span>Sentinel v{health?.version ?? "0.1.0"}</span>
