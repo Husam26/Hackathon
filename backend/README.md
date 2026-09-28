@@ -1,23 +1,27 @@
-# Backend — Sentinel (FastAPI)
+# Sentinel Backend
 
-Python + FastAPI service implementing the agent loop. See `../docs/ARCHITECTURE.md` (§2 agent loop, §6 build order) and `../docs/HINDSIGHT_INTEGRATION.md`.
+FastAPI service for grounded incident analysis, memory recall, persistence, and deterministic demo control.
 
-## Modules to build (in order)
-| File | Responsibility |
-|------|----------------|
-| `schemas.py` | Pydantic contracts (`Alert`, `SentinelResponse`, `RecalledMemory`, `IncidentRecord`) — see `docs/DATA_MODEL.md` §2 |
-| `memory_client.py` | Hindsight wrapper: `retain`, `recall`, `reflect`, `get_mental_model` |
-| `groq_client.py` | Groq chat + JSON/structured output |
-| `store.py` | SQLite (SQLModel) system-of-record |
-| `orchestrator.py` | alert → recall → mental_model → prompt → Groq → retain |
-| `main.py` | FastAPI REST + WebSocket + demo control endpoints (`/reset`, `/step`) |
-| `seed_incidents.py` | Load `../data/incidents.json` and `retain` historical incidents |
+Run commands from the repository root:
 
-## Run
-```bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-cp .env.example .env      # add keys
-python seed_incidents.py
-uvicorn main:app --reload
+```powershell
+python -m pip install -r backend\requirements-dev.txt
+python -m uvicorn backend.main:app --reload
 ```
+
+Optional live-provider setup:
+
+```powershell
+Copy-Item backend\.env.example backend\.env
+python -m backend.seed_incidents
+```
+
+Verification:
+
+```powershell
+python -m ruff check backend
+python -m ruff format --check backend
+python -m pytest
+```
+
+See [../docs/IMPLEMENTATION.md](../docs/IMPLEMENTATION.md) for provider selection, module responsibilities, and endpoint contracts.

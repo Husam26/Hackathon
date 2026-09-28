@@ -1,22 +1,24 @@
-# Frontend — Sentinel Ops Console (Next.js)
+# Sentinel Operations Console
 
-Next.js + Tailwind + shadcn/ui. Dark "ops console" theme. See `../docs/ARCHITECTURE.md` §4 (design bets).
+Next.js 16, React 19, Tailwind CSS 4, and a small code-native component system for the incident-command experience.
 
-## Components to build
-| Component | Purpose |
-|-----------|---------|
-| `ChatPane` | Slack-like incident thread; streams the agent's response over WebSocket |
-| `MemoryPanel` | 🧠 Hindsight Memory — recalled incidents + tags + recall scores (dim/empty in INC-1, dense/glowing in INC-5). **This is the differentiator.** |
-| `MTTRChart` | MTTR trend line dropping 90 → 3 min |
-| `DemoControls` | `Reset` / `Step` to replay INC-1…INC-5 deterministically |
-
-## Setup
-```bash
-npm install
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
+```powershell
+npm ci
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-## Notes
-- Talk to the backend over REST for control (`/reset`, `/step`) and WebSocket for streamed agent output.
-- Render `SentinelResponse` as structured cards (classification, hypotheses, mitigation, occurrence count, MTTR trend) — not raw text.
+The console expects `NEXT_PUBLIC_API_URL=http://localhost:8000` by default.
+
+Verification:
+
+```powershell
+npm run lint
+npm run typecheck
+npm test
+npm audit
+npm run build
+npm start
+```
+
+The interface renders API responses as structured evidence: incident alert and metrics, classification, hypotheses, cited memories with scores and tags, mental-model content, mitigation, escalation, and MTTR history.
