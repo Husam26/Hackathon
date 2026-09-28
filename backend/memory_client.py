@@ -191,9 +191,13 @@ class HindsightMemoryClient:
         return memories
 
     async def get_mental_model(self, model_id: str) -> MentalModel | None:
-        response = await self._client.get(
-            f"{self._bank_path}/mental-models/{quote(model_id, safe='')}"
-        )
+        for attempt in range(3):
+            response = await self._client.get(
+                f"{self._bank_path}/mental-models/{quote(model_id, safe='')}"
+            )
+            if response.status_code < 500 or attempt == 2:
+                break
+            await asyncio.sleep(0.25 * (attempt + 1))
         if response.status_code == 404:
             return None
         response.raise_for_status()
