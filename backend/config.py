@@ -21,8 +21,11 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'sentinel.db').as_posix()}"
     cors_origins: str = "http://localhost:3000"
     groq_api_key: str | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.6-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     hindsight_api_key: str | None = None
     hindsight_base_url: str = "https://api.hindsight.vectorize.io"
     hindsight_bank_id: str = "acme-sre"

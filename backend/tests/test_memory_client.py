@@ -35,7 +35,7 @@ async def test_hindsight_retain_uses_stable_document_id() -> None:
     assert result == "op-123"
     assert seen["path"] == "/v1/default/banks/team%2Fa/memories"
     assert seen["body"]["items"][0]["document_id"] == "INC-1"
-    assert seen["body"]["tags"] == ["service:checkout-service"]
+    assert seen["body"]["items"][0]["tags"] == ["service:checkout-service"]
 
 
 @pytest.mark.asyncio

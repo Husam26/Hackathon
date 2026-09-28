@@ -5,7 +5,7 @@
 - Python 3.11+
 - Node.js 22+
 - Optional: Docker Desktop
-- Optional for live mode: Groq and Hindsight API keys
+- Optional for live mode: Groq, Gemini, and Hindsight API keys
 
 ## Backend
 
@@ -44,7 +44,10 @@ Edit `backend/.env`:
 
 ```dotenv
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
+# Optional backup provider; used if Groq has an HTTP or response-contract failure
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.6-flash
 HINDSIGHT_API_KEY=hsk_...
 HINDSIGHT_BASE_URL=https://api.hindsight.vectorize.io
 HINDSIGHT_BANK_ID=acme-sre
@@ -82,5 +85,5 @@ docker compose up --build
 - **UI remains on Connecting:** open the console through `http://localhost:3000` and ensure `CORS_ORIGINS` contains that exact origin.
 - **Hindsight returns 401:** check that the key starts with the current Hindsight key format and that it can access the configured bank.
 - **Cold reset still looks informed:** confirm the API returned no recalled memories. The orchestrator intentionally withholds mental models until at least two memories are recalled.
-- **Groq output is rejected:** inspect backend logs. Sentinel retries once when JSON or citations violate the response contract.
+- **Groq output is rejected:** inspect backend logs. Sentinel retries once when JSON or citations violate the response contract; with `GEMINI_API_KEY` configured, it then tries Gemini.
 - **Port already in use:** identify the existing listener before starting a duplicate process.
