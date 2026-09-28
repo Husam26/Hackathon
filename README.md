@@ -1,93 +1,94 @@
-# 🛡️ Sentinel — SRE Incident Commander Agent
+# Sentinel — SRE Incident Commander
 
-> An AI incident-response co-pilot with **persistent memory**. It gets smarter with every incident — recognizing recurring patterns, recalling proven fixes, and collapsing Mean-Time-To-Resolution (MTTR) from ~90 minutes to ~3 minutes.
+Sentinel is a memory-powered incident-response console. It recalls related production incidents, grounds every historical claim in retrieved evidence, recommends proven mitigations, and retains resolved incidents so the next response starts smarter.
 
-Built for the hackathon on **[Hindsight](https://hindsight.vectorize.io)** (agent memory by Vectorize) + **[Groq](https://groq.com)** (fast LLM inference).
+The five-step Northwind Pay demo shows the learning curve directly: cold-start triage, an unrelated decoy, a deliberately ambiguous recurrence, a confirmed pattern, and a third-occurrence escalation where MTTR falls from 90 minutes to 3.
 
----
+## What is implemented
 
-## The one-line pitch
+- FastAPI REST and WebSocket backend with strict Pydantic contracts.
+- Hindsight Cloud REST adapter plus an explicit offline/local-memory fallback.
+- Groq JSON-mode analysis with validation, retry, and citation allow-listing.
+- Grounded deterministic analyzer for tests and keyless development.
+- SQLite system of record with idempotent incident upserts.
+- Seven-incident synthetic corpus, including five scripted incidents and two distractors.
+- Next.js 16 operations console with memory evidence, mental-model status, hypotheses, mitigation, escalation, and MTTR visualization.
+- Backend and frontend tests, linting, production builds, Docker Compose, and GitHub Actions CI.
 
-Every SRE team re-solves the same production incidents at 3 AM because institutional knowledge lives in senior engineers' heads and in lost Slack threads. **Sentinel remembers.** Without memory it's a generic checklist bot; with Hindsight memory it behaves like the team's most experienced on-call engineer.
+Implementation details and API contracts: [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 
-## Why this wins
+## Quick start — offline mode
 
-- **Deep technical niche** other teams avoid (real SRE/DevOps workflows, not a chatbot).
-- **A visible learning curve** — the demo *shows* the agent improving over 5 incidents.
-- **Hindsight is the moat, not a bolt-on** — memory recall & the auto-synthesized "Mental Model" literally drive the agent's best answer (targets the 25% memory-integration criterion).
+Offline mode needs no keys and clearly identifies itself as `local / grounded-rules` in the UI.
 
----
+```powershell
+# Terminal 1 — from the repository root
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend\requirements-dev.txt
+python -m uvicorn backend.main:app --reload
 
-## The "Genius Moment" (Interaction 5)
-
-By the 5th incident, Sentinel — *before any manual investigation* — says:
-
-> 🔴 **Recurring incident detected — 3rd occurrence of a known pattern (INC-1, INC-4, now this).**
-> **Root cause:** `payments-service` opens unbounded Redis connections; the `checkout-service` pool saturates.
-> **Proven mitigation (worked 2/2):** roll back the payments deploy + `kubectl rollout restart checkout-service`. ETA ~4 min.
-> **This should not still be happening** — the permanent fix `JIRA-891` has been open for 6 weeks. Recommend blocking payments deploys until merged.
-> 📉 **MTTR for this signature: 90 min → 15 min → ~3 min.**
-
-Full walkthrough: **[docs/DEMO_SCENARIO.md](docs/DEMO_SCENARIO.md)**.
-
----
-
-## Tech Stack
-
-| Layer | Choice |
-|-------|--------|
-| LLM inference | **Groq** (`llama-3.3-70b-versatile`, JSON mode) |
-| Agent memory | **Hindsight Cloud** (`api.hindsight.vectorize.io`), local Docker fallback |
-| Backend | **Python + FastAPI** (REST + WebSocket streaming) |
-| System of record | **SQLite** (SQLModel) |
-| Frontend | **Next.js + Tailwind + shadcn/ui** (dark "ops console" theme) |
-| Deploy | Vercel (frontend) + Render/Fly.io or ngrok (backend) |
-
-Details: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
-
----
-
-## Repository layout
-
-```
-.
-├── README.md
-├── docs/
-│   ├── ARCHITECTURE.md          # System design + tech stack rationale
-│   ├── HINDSIGHT_INTEGRATION.md # retain / recall / reflect / mental-model contracts
-│   ├── DEMO_SCENARIO.md         # The 5-step learning-curve script
-│   ├── DATA_MODEL.md            # Incident + memory schemas
-│   └── SETUP.md                 # Local dev setup
-├── backend/                     # FastAPI app (see backend/README.md)
-├── frontend/                    # Next.js console (see frontend/README.md)
-└── data/                        # Synthetic incident corpus
-```
-
----
-
-## Quickstart
-
-See **[docs/SETUP.md](docs/SETUP.md)** for full instructions. TL;DR:
-
-```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env        # add GROQ_API_KEY + HINDSIGHT_API_KEY
-uvicorn main:app --reload
-
-# Frontend
+# Terminal 2
 cd frontend
-npm install
+npm ci
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
----
+Open `http://localhost:3000` and use **Run incident** to replay the five-step scenario. Backend OpenAPI documentation is at `http://localhost:8000/docs`.
 
-## Roles
+## Live Hindsight + Groq mode
 
-- **Product / Architecture:** planning, demo narrative, Hindsight strategy.
-- **Development:** implementation against the specs in `docs/`.
+```powershell
+Copy-Item backend\.env.example backend\.env
+# Add GROQ_API_KEY and HINDSIGHT_API_KEY to backend\.env
+python -m backend.seed_incidents
+python -m uvicorn backend.main:app --reload
+```
 
-Start with **[docs/SETUP.md](docs/SETUP.md)** → then pick up tasks in the order listed in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#build-order)**.
+Before presenting a live integration, check `http://localhost:8000/api/health` reports:
+
+```json
+{"status":"ok","providers":{"memory":"hindsight","analysis":"groq"}}
+```
+
+The checked-in default model is `llama-3.3-70b-versatile`, which uses Groq JSON-object mode. Sentinel then validates the response with Pydantic and rejects citations that were not retrieved from memory.
+
+## Verification
+
+```powershell
+# Repository root
+python -m ruff check backend
+python -m ruff format --check backend
+python -m pytest
+
+# frontend\
+npm run lint
+npm run typecheck
+npm test
+npm audit
+npm run build
+```
+
+## Docker Compose
+
+```powershell
+# backend/.env is optional; without it the stack uses offline mode
+docker compose up --build
+```
+
+The frontend runs on port 3000, the API on port 8000, and SQLite data is stored in the `sentinel-data` volume.
+
+## Repository layout
+
+```text
+backend/    FastAPI service, providers, SQLite store, demo controller, tests
+data/       Validated synthetic incident corpus
+docs/       Architecture, integration, scenario, setup, and implementation notes
+frontend/   Next.js operations console and tests
+.github/    CI workflow
+```
+
+## Memory integrity
+
+Hindsight is the recall layer; SQLite is the canonical record. A matching service alone is not treated as a known incident. Sentinel compares service, trigger, symptoms, and time window, deduplicates occurrences by incident/document ID, and requires retrieved-memory citations for claims about historical incidents, tickets, or mitigations.

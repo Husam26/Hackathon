@@ -1,78 +1,86 @@
-# Local Dev Setup
+# Local Development Setup
 
 ## Prerequisites
+
 - Python 3.11+
-- Node.js 18+
-- (Optional) Docker — only if running Hindsight locally instead of Cloud
-- API keys: **Groq** (console.groq.com) and **Hindsight** (hindsight.vectorize.io)
+- Node.js 22+
+- Optional: Docker Desktop
+- Optional for live mode: Groq and Hindsight API keys
 
----
+## Backend
 
-## 1. Clone
-```bash
-git clone https://github.com/Husam26/Hackathon.git
-cd Hackathon
-```
+Run from the repository root so the `backend` package and `data` directory resolve consistently.
 
-## 2. Backend
-```bash
-cd backend
+```powershell
 python -m venv .venv
-# macOS/Linux:
-source .venv/bin/activate
-# Windows (PowerShell):
-.venv\Scripts\Activate.ps1
-
-pip install -r requirements.txt
-cp .env.example .env        # then edit .env with your keys
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend\requirements-dev.txt
+Copy-Item backend\.env.example backend\.env  # optional
+python -m uvicorn backend.main:app --reload
 ```
 
-`.env` (see `.env.example`):
+Health check:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/health
 ```
+
+With no keys, the response reports `local` memory and `grounded-rules` analysis. That mode is complete enough to run and test the five-step demo offline.
+
+## Frontend
+
+```powershell
+cd frontend
+npm ci
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+## Live provider setup
+
+Edit `backend/.env`:
+
+```dotenv
 GROQ_API_KEY=gsk_...
 GROQ_MODEL=llama-3.3-70b-versatile
-HINDSIGHT_API_KEY=...
+HINDSIGHT_API_KEY=hsk_...
 HINDSIGHT_BASE_URL=https://api.hindsight.vectorize.io
 HINDSIGHT_BANK_ID=acme-sre
-DATABASE_URL=sqlite:///./sentinel.db
+HINDSIGHT_MENTAL_MODEL_ID=checkout-redis-pattern
+DATABASE_URL=sqlite:///./backend/sentinel.db
+CORS_ORIGINS=http://localhost:3000
 ```
 
-Seed the historical incidents into Hindsight, then run:
-```bash
-python seed_incidents.py     # retains INC-1..N into the memory bank
-uvicorn main:app --reload    # http://localhost:8000
+Seed the complete corpus and explicitly provision the mental model:
+
+```powershell
+python -m backend.seed_incidents
 ```
 
-## 3. Frontend
-```bash
-cd ../frontend
-npm install
-# point the app at the backend:
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
-npm run dev                   # http://localhost:3000
-```
-
----
-
-## Optional: run Hindsight locally (demo-day wifi insurance)
-```bash
-# from the Hindsight docker instructions
-docker run -p 8888:8888 -p 9999:9999 vectorize/hindsight
-# then set in backend/.env:
-#   HINDSIGHT_BASE_URL=http://localhost:8888
-# API at :8888, UI at :9999
-```
-
----
+Seeding is idempotent because each incident uses its stable ID as Hindsight's `document_id`.
 
 ## Demo flow
-1. Start backend + frontend.
-2. Open the console at `http://localhost:3000`.
-3. Use **Demo Controls**: `Reset` (clear bank / fresh bank_id) → `Step` through INC-1…INC-5.
-4. Watch the **Memory Panel** fill and the **MTTR chart** drop.
+
+1. Start backend and frontend.
+2. Confirm the provider labels in the header match the intended mode.
+3. Select **Reset memory** before a new presentation.
+4. Run incidents 1–5 in order.
+5. On step 5, verify two prior Redis incidents are cited, occurrence count is 3, the mental model is visible, and MTTR reads `90 → 15 → 3` for the recurring signature.
+
+## Docker
+
+```powershell
+docker compose up --build
+```
+
+`backend/.env` is optional. Compose persists SQLite under the `sentinel-data` named volume.
 
 ## Troubleshooting
-- **401 from Groq/Hindsight** → check keys in `backend/.env`.
-- **Empty recall on INC-4/5** → confirm `seed_incidents.py` ran and used the same `HINDSIGHT_BANK_ID`.
-- **CORS errors** → confirm `NEXT_PUBLIC_API_URL` matches the backend origin; FastAPI CORS allows `localhost:3000`.
-- **Cloud unreachable on stage** → switch `HINDSIGHT_BASE_URL` to the local Docker instance.
+
+- **UI remains on Connecting:** open the console through `http://localhost:3000` and ensure `CORS_ORIGINS` contains that exact origin.
+- **Hindsight returns 401:** check that the key starts with the current Hindsight key format and that it can access the configured bank.
+- **Cold reset still looks informed:** confirm the API returned no recalled memories. The orchestrator intentionally withholds mental models until at least two memories are recalled.
+- **Groq output is rejected:** inspect backend logs. Sentinel retries once when JSON or citations violate the response contract.
+- **Port already in use:** identify the existing listener before starting a duplicate process.
