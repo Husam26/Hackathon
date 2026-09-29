@@ -1,18 +1,55 @@
 import type { AnalysisResult, Alert, DemoStatus, DemoStep, Health, Incident, ManualIncidentInput, MemoryPreferences } from "@/lib/types";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function errorMessage(body: unknown, status: number): string {
+  if (typeof body === "object" && body !== null && "detail" in body) {
+    const detail = body.detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((item) => item?.msg ?? "Invalid request").join("; ");
+    }
+  }
+  return `Request failed (${status})`;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.detail ?? `Request failed (${response.status})`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      `Unable to reach Sentinel API at ${API_URL}. Check that the backend is running.`,
+    );
   }
+
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  let body: unknown = null;
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      throw new ApiError(response.status, "Sentinel API returned invalid JSON.");
+    }
+  }
+  if (!response.ok) throw new ApiError(response.status, errorMessage(body, response.status));
+  if (body === null) throw new ApiError(response.status, "Sentinel API returned an empty response.");
+  return body as T;
 }
 
 export const sentinelApi = {

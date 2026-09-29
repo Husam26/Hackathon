@@ -10,8 +10,8 @@ Next.js operations console
   └─ WebSocket: status + structured alert analysis
                  │
                  ▼
-FastAPI ── SentinelOrchestrator
-  ├─ MemoryProvider ── Hindsight Cloud or in-process fallback
+FastAPI application factory ── API delivery layer ── SentinelOrchestrator
+  ├─ MemoryProvider ── Hindsight Cloud with mirrored local fallback
   ├─ IncidentAnalyzer ── Groq primary, Gemini failover, or grounded-rules fallback
   └─ IncidentStore ── SQLite / SQLModel
 ```
@@ -22,10 +22,10 @@ FastAPI ── SentinelOrchestrator
 2. Build a query from service, severity, timestamp, signals, and recent deploys.
 3. Recall service-scoped `experience`, `world`, and `observation` facts.
 4. Load the configured mental model only when at least two memories were recalled.
-5. Analyze with Groq, fail over to Gemini for a provider/contract failure when configured, or use deterministic grounded rules without LLM keys.
+5. Analyze with Groq, fail over to Gemini for a provider/contract failure when configured, then use deterministic grounded rules as the final safe fallback.
 6. Reject malformed output or citations outside the retrieved-memory allow-list.
 7. Return the structured analysis and evidence to the console.
-8. After resolution, retain the narrative with a stable document ID and upsert the canonical SQLite record.
+8. After resolution, retain the narrative with a stable document ID, mirror it locally when Hindsight is configured, and upsert the canonical SQLite record.
 
 ## Why two stores
 
@@ -50,11 +50,15 @@ The stores are intentionally not interchangeable. Losing the memory index must n
 | `backend/schemas.py` | API, corpus, provider, and response contracts |
 | `backend/config.py` | Environment settings and defaults |
 | `backend/memory_client.py` | Hindsight and local memory adapters |
+| `backend/resilience.py` | Provider fallback decorators and local memory mirror |
 | `backend/groq_client.py` | Groq and grounded-rules analyzers |
 | `backend/store.py` | SQLite system of record |
 | `backend/orchestrator.py` | Recall → mental model → analysis → retain flow |
 | `backend/demo.py` | Deterministic five-step state machine |
-| `backend/main.py` | REST, WebSocket, lifecycle, and CORS |
+| `backend/services.py` | Runtime dependency graph and provider composition |
+| `backend/api.py` | REST and WebSocket delivery layer |
+| `backend/app_factory.py` | FastAPI lifecycle, CORS, and router registration |
+| `backend/main.py` | Minimal ASGI compatibility entrypoint |
 | `backend/seed_incidents.py` | Idempotent corpus and mental-model provisioning |
 | `frontend/components/sentinel-console.tsx` | Main incident-command experience |
 | `frontend/components/mttr-chart.tsx` | Dependency-free MTTR visualization |
