@@ -208,3 +208,9 @@ footer { max-width: 1536px; margin: 0 auto; padding: 0 0 20px; justify-content: 
 .artifact-navigation span { color: var(--muted); font: 600 9px var(--font-mono), monospace; letter-spacing: .08em; text-transform: uppercase; }
 .artifact-navigation a { border: 1px solid rgba(112,183,255,.35); color: var(--blue); padding: 5px 7px; font-size: 10px; text-decoration: none; }
 .artifact-navigation a:hover { border-color: var(--blue); background: rgba(112,183,255,.08); }
+
+.workspace-nav { display: flex; gap: 5px; margin-left: auto; margin-right: 18px; }
+.workspace-nav a { border: 1px solid var(--line); color: var(--muted); padding: 6px 10px; font: 600 10px var(--font-mono), monospace; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+.workspace-nav a:hover, .workspace-nav a.active { border-color: rgba(53,230,165,.5); background: var(--green-dim); color: var(--green); }
+.manual-rail .scenario-list { margin-bottom: 36px; }
+@media (max-width: 760px) { .topbar { height: auto; min-height: 68px; padding: 10px 16px; flex-wrap: wrap; gap: 10px; } .workspace-nav { order: 3; width: 100%; margin: 0; } .topbar-status { margin-left: auto; } }

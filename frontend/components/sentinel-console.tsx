@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AppNavigation } from "@/components/app-navigation";
 import { IncidentWorkbench } from "@/components/incident-workbench";
 import { OperatorControls } from "@/components/operator-controls";
 
@@ -73,7 +74,8 @@ function MemoryCard({ memory }: { memory: RecalledMemory }) {
   );
 }
 
-export function SentinelConsole() {
+export function SentinelConsole({ workspace = "demo" }: { workspace?: "demo" | "manual" }) {
+  const isDemo = workspace === "demo";
   const [health, setHealth] = useState<Health | null>(null);
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [history, setHistory] = useState<DemoStep[]>([]);
@@ -161,6 +163,7 @@ export function SentinelConsole() {
             <span>INCIDENT COMMAND</span>
           </div>
         </div>
+        <AppNavigation />
         <div className="topbar-status">
           <span className={`status-light ${health ? "online" : ""}`} />
           <span>{health ? "Command channel online" : "Connecting to command channel"}</span>
@@ -174,11 +177,11 @@ export function SentinelConsole() {
 
       <section className="command-strip">
         <div>
-          <span className="eyebrow">Northwind Pay · Production</span>
-          <h1>Incident memory, under pressure.</h1>
-          <p>Sentinel turns prior response evidence into grounded action—without inventing history.</p>
+          <span className="eyebrow">Northwind Pay · Production · {isDemo ? "Guided demo" : "Manual response workspace"}</span>
+          <h1>{isDemo ? "Incident memory, under pressure." : "Turn resolved work into reusable incident memory."}</h1>
+          <p>{isDemo ? "Run the scripted learning curve, inspect grounded evidence, and show how Sentinel improves across recurring incidents." : "Analyze a manually documented incident or reopen a previous record with the same command thread, Hindsight evidence, resolution velocity, and enterprise handoffs."}</p>
         </div>
-        <div className="controls">
+        {isDemo && <div className="controls">
           <button className="button secondary" onClick={reset} disabled={busy}>
             <RefreshCcw size={15} /> Reset memory
           </button>
@@ -186,9 +189,8 @@ export function SentinelConsole() {
             {busy ? <Activity size={15} className="spin" /> : <Play size={15} />}
             {busy ? "Analyzing" : demoPosition >= demoTotal ? "Demo complete" : `Run incident ${demoPosition + 1}`}
           </button>
-        </div>
+        </div>}
       </section>
-
       {error && (
         <div className="error-banner" role="alert">
           <AlertTriangle size={17} /> {error}
@@ -217,7 +219,7 @@ export function SentinelConsole() {
       </section>
 
       <div className="workspace">
-        <aside className="scenario-rail panel">
+        {isDemo ? <aside className="scenario-rail panel">
           <div className="panel-title">
             <div><span className="eyebrow">Demo sequence</span><h2>Learning curve</h2></div>
             <span>{demoPosition}/{demoTotal}</span>
@@ -236,8 +238,15 @@ export function SentinelConsole() {
             })}
           </ol>
           <MttrChart values={mttrValues} />
-        </aside>
-
+        </aside> : <aside className="scenario-rail panel manual-rail">
+          <div className="panel-title"><div><span className="eyebrow">Manual workflow</span><h2>Close the learning loop</h2></div></div>
+          <ol className="scenario-list">
+            <li className="current"><span className="step-marker">1</span><div><strong>Analyze existing memory</strong><span>Evidence before retention</span></div></li>
+            <li><span className="step-marker">2</span><div><strong>Retain the resolution</strong><span>SQLite + Hindsight</span></div></li>
+            <li><span className="step-marker">3</span><div><strong>Hand off safely</strong><span>Teams, GitHub, approval gate</span></div></li>
+          </ol>
+          <MttrChart values={mttrValues} />
+        </aside>}
         <section className="incident-panel panel">
           <div className="panel-title">
             <div><span className="eyebrow">Live command thread</span><h2>{active?.incident.title ?? "Awaiting first alert"}</h2></div>
@@ -247,7 +256,7 @@ export function SentinelConsole() {
           {!active ? (
             <div className="empty-state">
               <TerminalSquare size={31} />
-              <h3>Ready for the first page</h3>
+              <h3>{isDemo ? "Ready for the first page" : "Ready for a manual incident"}</h3>
               <p>1. Run the next incident. 2. Review the evidence and recommended action. 3. Continue through all five steps. Use Reset memory to start a fresh demo; it clears the configured demo memory bank.</p>
             </div>
           ) : (

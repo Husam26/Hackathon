@@ -1,5 +1,5 @@
-import { SentinelConsole } from "@/components/sentinel-console";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <SentinelConsole />;
+  redirect("/demo");
 }
