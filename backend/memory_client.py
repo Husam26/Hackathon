@@ -194,6 +194,11 @@ class HindsightMemoryClient:
                     recall_score=max(0, min(1, float(score))),
                     timestamp=item.get("occurred_start") or item.get("mentioned_at"),
                     fact_type=item.get("fact_type") or item.get("type"),
+                    retrieval_scores={
+                        key: float(value)
+                        for key, value in scores.items()
+                        if value is not None
+                    },
                 )
             )
         return memories

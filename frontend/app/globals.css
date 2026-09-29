@@ -197,3 +197,9 @@ footer { max-width: 1536px; margin: 0 auto; padding: 0 0 20px; justify-content: 
   .memory-stack { grid-template-columns: 1fr; }
   footer { margin: 0 16px; gap: 12px; flex-wrap: wrap; }
 }
+
+.memory-inspector-trigger { display: block; width: 100%; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
+.memory-inspector-trigger:focus-visible .memory-card { outline: 2px solid var(--green); }
+.memory-inspector { margin: 0 12px 12px; padding: 10px; border: 1px solid rgba(112,183,255,.28); background: rgba(112,183,255,.06); display: grid; gap: 5px; }
+.memory-inspector span { color: var(--blue); font: 600 9px var(--font-mono), monospace; text-transform: uppercase; }
+.memory-inspector strong { font-size: 12px; } .memory-inspector p, .memory-inspector code { margin: 0; color: #b8c8c0; font-size: 10px; line-height: 1.5; white-space: normal; }

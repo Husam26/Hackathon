@@ -19,11 +19,12 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { IncidentWorkbench } from "@/components/incident-workbench";
+import { OperatorControls } from "@/components/operator-controls";
 
 import { MttrChart } from "@/components/mttr-chart";
 import { sentinelApi } from "@/lib/api";
 import { formatMetric, formatPercent, humanize } from "@/lib/format";
-import type { DemoStatus, DemoStep, Health, RecalledMemory } from "@/lib/types";
+import type { DemoStatus, DemoStep, Health, MemoryPreferences, RecalledMemory } from "@/lib/types";
 
 const demoLabels = [
   "Founding incident",
@@ -57,6 +58,8 @@ export function SentinelConsole() {
   const [health, setHealth] = useState<Health | null>(null);
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [history, setHistory] = useState<DemoStep[]>([]);
+  const [memoryPreferences, setMemoryPreferences] = useState<MemoryPreferences>({ recency: "all_history", severities: [] });
+  const [inspectedMemory, setInspectedMemory] = useState<RecalledMemory | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const active = history.at(-1) ?? null;
@@ -76,7 +79,7 @@ export function SentinelConsole() {
     setBusy(true);
     setError(null);
     try {
-      const result = await sentinelApi.step();
+      const result = await sentinelApi.step(memoryPreferences);
       setHistory((current) => [...current, result]);
       setDemoStatus(await sentinelApi.demoStatus());
     } catch (reason) {
@@ -90,7 +93,7 @@ export function SentinelConsole() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [memoryPreferences]);
 
   const reset = useCallback(async () => {
     setBusy(true);
@@ -98,6 +101,7 @@ export function SentinelConsole() {
     try {
       await sentinelApi.reset();
       setHistory([]);
+      setInspectedMemory(null);
       setDemoStatus({ position: 0, total_steps: 5, next_incident_id: "INC-1047" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to reset the demo.");
@@ -158,6 +162,8 @@ export function SentinelConsole() {
           <AlertTriangle size={17} /> {error}
         </div>
       )}
+
+      <OperatorControls preferences={memoryPreferences} onPreferencesChange={setMemoryPreferences} active={active?.analysis ?? null} incidentId={active?.incident.id ?? null} />
 
       <section className="metric-row">
         <div className="metric-card">
@@ -269,10 +275,11 @@ export function SentinelConsole() {
             </div>
           )}
           <div className="memory-stack">
-            {memories.length ? memories.map((memory) => <MemoryCard key={`${memory.id}-${memory.content}`} memory={memory} />) : (
+            {memories.length ? memories.map((memory) => <button className="memory-inspector-trigger" key={`${memory.id}-${memory.content}`} onClick={() => setInspectedMemory(memory)} type="button"><MemoryCard memory={memory} /></button>) : (
               <div className="memory-empty"><Database size={27} /><strong>No matching memory</strong><p>The cold-start path stays generic until evidence exists.</p></div>
             )}
           </div>
+          {inspectedMemory && <div className="memory-inspector"><span>Hindsight memory inspector</span><strong>{inspectedMemory.id}</strong><p>Why cited: semantic retrieval matched this incident; final score {formatPercent(inspectedMemory.recall_score)}.</p><code>{Object.entries(inspectedMemory.retrieval_scores).map(([key, value]) => `${key}: ${value.toFixed(3)}`).join(" · ") || "Stage scores unavailable"}</code></div>}
         </aside>
       </div>
 

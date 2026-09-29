@@ -1,5 +1,10 @@
 export type Classification = "KNOWN_PATTERN" | "NOVEL";
 
+export interface MemoryPreferences {
+  recency: "past_30_days" | "past_quarter" | "all_history";
+  severities: ("SEV-1" | "SEV-2" | "SEV-3" | "SEV-4")[];
+}
+
 export interface Health {
   status: "ok" | "degraded";
   version: string;
@@ -22,6 +27,7 @@ export interface RecalledMemory {
   recall_score: number;
   timestamp: string | null;
   fact_type: "world" | "experience" | "observation" | null;
+  retrieval_scores: Record<string, number>;
 }
 
 export interface Hypothesis {

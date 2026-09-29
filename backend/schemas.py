@@ -105,6 +105,7 @@ class RecalledMemory(StrictModel):
     recall_score: float = Field(ge=0, le=1)
     timestamp: datetime | None = None
     fact_type: Literal["world", "experience", "observation"] | None = None
+    retrieval_scores: dict[str, float] = Field(default_factory=dict)
 
 
 class RecallQuery(StrictModel):
