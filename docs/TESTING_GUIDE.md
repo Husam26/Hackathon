@@ -75,7 +75,7 @@ Only run this with Hindsight credentials configured:
 python -m backend.seed_incidents
 ```
 
-Expected output: `Seeded 7 incidents and 2 world facts.` Seeding is idempotent because
+Expected output: `Seeded 9 incidents and 2 world facts.` Seeding is idempotent because
 stable incident IDs are used as Hindsight document IDs.
 
 ## Test direct analysis

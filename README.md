@@ -1,61 +1,170 @@
-# Sentinel — SRE Incident Commander
+# Sentinel — Incident Memory Command Center
 
-Sentinel is a memory-powered incident-response console. It recalls related production incidents, grounds every historical claim in retrieved evidence, recommends proven mitigations, and retains resolved incidents so the next response starts smarter.
+Sentinel is a memory-powered SRE incident-response application built for the moment
+an on-call engineer needs a proven answer, not a generic checklist. It recalls prior
+incidents with Hindsight, constrains every historical claim to retrieved evidence,
+and turns the result into a safe, reviewable operator workflow.
 
-The five-step Northwind Pay demo shows the learning curve directly: cold-start triage, an unrelated decoy, a deliberately ambiguous recurrence, a confirmed pattern, and a third-occurrence escalation where MTTR falls from 90 minutes to 3.
+> The product thesis: recurring incidents should get faster and safer to resolve
+> because each resolved incident becomes usable operational memory.
 
-## What is implemented
+## Why this is not a chatbot
 
-- FastAPI REST and WebSocket backend with strict Pydantic contracts.
-- Hindsight Cloud REST adapter plus an explicit offline/local-memory fallback.
-- Groq JSON-mode primary analysis with validation, retry, and citation allow-listing, plus optional Gemini failover.
-- Grounded deterministic analyzer for tests and keyless development.
-- SQLite system of record with idempotent incident upserts.
-- Seven-incident synthetic corpus, including five scripted incidents and two distractors.
-- Next.js 16 operations console with memory evidence, mental-model status, hypotheses, mitigation, escalation, and MTTR visualization.
-- Backend and frontend tests, linting, production builds, Docker Compose, and GitHub Actions CI.
+A normal incident chatbot can produce plausible advice without knowing whether it
+worked before. Sentinel separates the operational responsibilities:
 
-Implementation details and API contracts: [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+- **Hindsight** recalls semantic operational experience, scores it, and exposes the
+  source memories.
+- **SentinelOrchestrator** builds context, applies optional recency/severity bias,
+  retrieves a mental model only when evidence is strong enough, and enforces
+  citation grounding.
+- **Groq → Gemini → grounded rules** returns validated structured triage without
+  allowing an unavailable or malformed AI provider to crash the operator console.
+- **SQLite** keeps the canonical audit record even if the memory provider is
+  unavailable.
+- **The operator** remains responsible for external action: Teams, GitHub, and
+  runbook controls create safe handoffs, never production commands.
 
-Judge-facing evidence map: [docs/JUDGING_ALIGNMENT.md](docs/JUDGING_ALIGNMENT.md). Live walkthrough: [docs/LIVE_DEMO_PLAYBOOK.md](docs/LIVE_DEMO_PLAYBOOK.md).
+## Reviewer journey
+
+1. Open `/demo` for the five-step Northwind Pay learning curve. It shows cold
+   triage, a decoy, ambiguous evidence, a confirmed recurrence, and an escalation
+   where synthetic MTTR improves from `90 → 15 → 3` minutes.
+2. Open recalled Hindsight cards and the Memory Inspector to see IDs, final score,
+   retrieval-stage scores, citations, and Memory Impact.
+3. Use **Compare with cold LLM triage** to contrast generic advice with grounded,
+   evidence-backed response.
+4. Change recency and severity controls to bias Hindsight retrieval without
+   replacing semantic ranking.
+5. Open `/manual` to document a resolved incident or reopen any ledger record in
+   the same command workspace, then show its Teams, GitHub Issue, runbook, and
+   related PR/runbook navigation.
+6. Paste an Azure Monitor Common Alert Schema payload and show it enter the same
+   full analysis workspace.
+
+## Workspaces
+
+| Route | Purpose | What to show |
+| --- | --- | --- |
+| `/demo` | Scripted five-step learning curve | Evidence, cold-vs-memory comparison, mental model, MTTR trend |
+| `/manual` | Manual incident documentation and history | Analyze-before-retain, ledger replay, artifacts, enterprise handoffs |
+
+Both workspaces use the same **Hindsight retrieval controls**, **Proof of memory**,
+**Live command thread**, **Hindsight evidence**, **resolution velocity**, and safe
+enterprise-handoff controls.
+
+## Architecture
+
+```text
+Next.js Console (/demo and /manual)
+        │ REST / WebSocket
+        ▼
+FastAPI application factory
+  └─ backend/http/routes
+      ├─ system + architecture endpoint
+      ├─ analysis + Azure + Teams + GitHub + runbook routes
+      ├─ incident + manual + artifact routes
+      ├─ demo routes
+      └─ WebSocket route
+        │
+        ▼
+SentinelOrchestrator
+  ├─ Hindsight Cloud with local mirrored fallback
+  ├─ Groq → Gemini → grounded-rules analyzer chain
+  └─ SQLite canonical incident store
+```
+
+The complete, current Mermaid sequence and system diagrams are available through:
+
+```text
+GET /api/architecture/workflow
+```
+
+They are also rendered in [Workflow diagrams](docs/WORKFLOW_DIAGRAMS.md). See
+[Architecture](docs/ARCHITECTURE.md) for module responsibilities.
+
+## Synthetic demo and seed data
+
+The checked-in corpus contains **9 incidents and 2 world facts**:
+
+- Five ordered incidents for the guided learning curve.
+- Two distractors to demonstrate that Sentinel does not overclaim similarity.
+- An Azure Monitor checkout recurrence with a pre-filled Issue, PR, runbook, and
+  JIRA reference.
+- A Manual Intake cache-capacity regression with retention tags and artifact
+  navigation.
+
+Seed data is synthetic and safe for a dedicated demo bank. Seeding is idempotent
+because each record has a stable incident/document ID.
+
+```powershell
+python -m backend.seed_incidents
+# Expected: Seeded 9 incidents and 2 world facts.
+```
 
 ## Quick start — offline mode
 
-Offline mode needs no keys and clearly identifies itself as `local / grounded-rules` in the UI.
+Offline mode requires no external keys. It uses local memory and deterministic
+grounded rules, which makes it the reliable rehearsal mode.
 
 ```powershell
-# Terminal 1 — from the repository root
+# Terminal 1 — repository root
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend\requirements-dev.txt
-python -m uvicorn backend.main:app --reload
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 
 # Terminal 2
-cd frontend
+Set-Location frontend
 npm ci
 Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000` and use **Run incident** to replay the five-step scenario. Backend OpenAPI documentation is at `http://localhost:8000/docs`.
+Open `http://127.0.0.1:3000`. The root URL redirects to `/demo`; select **Manual**
+in the navigation to switch workspaces. API documentation is at
+`http://127.0.0.1:8000/docs`.
 
-## Live Hindsight + AI analysis mode
+## Live Hindsight + AI mode
 
 ```powershell
 Copy-Item backend\.env.example backend\.env
-# Add GROQ_API_KEY and HINDSIGHT_API_KEY to backend\.env.
-# Optionally add GEMINI_API_KEY for automatic LLM failover.
+```
+
+Configure a dedicated bank in `backend/.env`:
+
+```dotenv
+HINDSIGHT_API_KEY=...
+HINDSIGHT_BANK_ID=your-dedicated-demo-bank
+GROQ_API_KEY=...
+GROQ_MODEL=openai/gpt-oss-120b
+# Optional backup provider
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.6-flash
+```
+
+Then seed and run:
+
+```powershell
 python -m backend.seed_incidents
-python -m uvicorn backend.main:app --reload
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Before presenting a live integration, check `http://localhost:8000/api/health` reports:
+Confirm the active provider chain before presenting:
 
-```json
-{"status":"ok","providers":{"memory":"hindsight","analysis":"groq"}}
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/health | ConvertTo-Json -Depth 5
 ```
 
-The checked-in Groq default is `openai/gpt-oss-120b`, selected because the previously configured Llama model was unavailable for the configured key. Add `GEMINI_API_KEY` to enable `gemini-3.6-flash` as a backup; when both are configured, Groq is tried first and Gemini is used only for a Groq HTTP/contract failure. Sentinel validates every response with Pydantic and rejects citations that were not retrieved from memory.
+## Safe enterprise behavior
+
+- **Azure Monitor:** accepts a validated subset of Common Alert Schema and opens the
+  result in the standard workspace.
+- **Teams:** creates and copies a Teams-ready brief; it does not post to a tenant.
+- **GitHub:** opens a pre-filled **new Issue** handoff for the selected incident; it
+  does not create an issue, trigger a workflow, or merge code.
+- **Runbooks:** require a recorded human confirmation and return an auditable handoff;
+  Sentinel never runs `kubectl`, database, or rollback commands.
 
 ## Verification
 
@@ -65,33 +174,41 @@ python -m ruff check backend
 python -m ruff format --check backend
 python -m pytest
 
-# frontend\
+# Frontend
+Set-Location frontend
 npm run lint
 npm run typecheck
 npm test
-npm audit
 npm run build
 ```
 
-## Docker Compose
+## Documentation
 
-```powershell
-# backend/.env is optional; without it the stack uses offline mode
-docker compose up --build
-```
-
-The frontend runs on port 3000, the API on port 8000, and SQLite data is stored in the `sentinel-data` volume.
+- [Live demo playbook](docs/LIVE_DEMO_PLAYBOOK.md)
+- [Detailed setup](docs/SETUP.md)
+- [Testing guide](docs/TESTING_GUIDE.md)
+- [Implementation and API guide](docs/IMPLEMENTATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Workflow diagrams](docs/WORKFLOW_DIAGRAMS.md)
+- [Judging alignment](docs/JUDGING_ALIGNMENT.md)
 
 ## Repository layout
 
 ```text
-backend/    FastAPI service, providers, SQLite store, demo controller, tests
-data/       Validated synthetic incident corpus
-docs/       Architecture, integration, scenario, setup, and implementation notes
-frontend/   Next.js operations console and tests
-.github/    CI workflow
+backend/
+  http/routes/       HTTP and WebSocket delivery modules
+  workflows/         Versioned Mermaid workflow artifacts
+  services.py        Dependency composition root
+  orchestrator.py    Recall → reasoning → retention application flow
+  memory_client.py   Hindsight and local provider adapters
+  resilience.py      Memory/AI fallback behavior
+  store.py           SQLite canonical record store
+  tests/             API, provider, demo, resilience regression tests
+frontend/
+  app/demo/          Guided demo workspace
+  app/manual/        Manual incident workspace
+  components/        Shared command-console UI
+  lib/               Typed API client and UI contracts
+data/                Validated synthetic incidents and world facts
+docs/                Reviewer, architecture, setup, and test material
 ```
-
-## Memory integrity
-
-Hindsight is the recall layer; SQLite is the canonical record. A matching service alone is not treated as a known incident. Sentinel compares service, trigger, symptoms, and time window, deduplicates occurrences by incident/document ID, and requires retrieved-memory citations for claims about historical incidents, tickets, or mitigations.

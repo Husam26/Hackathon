@@ -56,7 +56,10 @@ The stores are intentionally not interchangeable. Losing the memory index must n
 | `backend/orchestrator.py` | Recall → mental model → analysis → retain flow |
 | `backend/demo.py` | Deterministic five-step state machine |
 | `backend/services.py` | Runtime dependency graph and provider composition |
-| `backend/api.py` | REST and WebSocket delivery layer |
+| `backend/http/routes/` | Route modules grouped by system, analysis, incidents, demo, and WebSocket delivery |
+| `backend/http/dependencies.py` | Request and WebSocket accessors for application-scoped services |
+| `backend/workflows/diagrams.py` | Versioned Mermaid workflow artifacts exposed by the API |
+| `backend/api.py` | Compatibility facade exporting the organized HTTP router |
 | `backend/app_factory.py` | FastAPI lifecycle, CORS, and router registration |
 | `backend/main.py` | Minimal ASGI compatibility entrypoint |
 | `backend/seed_incidents.py` | Idempotent corpus and mental-model provisioning |

@@ -36,6 +36,7 @@ The current Hindsight API uses `types` in recall requests. Mental models are exp
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Status, version, and active provider modes |
+| `GET` | `/api/architecture/workflow` | Current expanded Mermaid sequence and system-flowchart artifacts |
 | `POST` | `/api/analyze` | Analyze an arbitrary validated alert |
 | `POST` | `/api/integrations/azure-monitor` | Convert Azure Monitor Common Alert Schema into a standard analysis result |
 | `POST` | `/api/incidents` | Retain and persist a resolved incident |
