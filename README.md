@@ -17,6 +17,8 @@ The five-step Northwind Pay demo shows the learning curve directly: cold-start t
 
 Implementation details and API contracts: [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 
+Judge-facing evidence map: [docs/JUDGING_ALIGNMENT.md](docs/JUDGING_ALIGNMENT.md). Live walkthrough: [docs/LIVE_DEMO_PLAYBOOK.md](docs/LIVE_DEMO_PLAYBOOK.md).
+
 ## Quick start — offline mode
 
 Offline mode needs no keys and clearly identifies itself as `local / grounded-rules` in the UI.
