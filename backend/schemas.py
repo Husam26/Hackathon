@@ -148,7 +148,7 @@ class SentinelResponse(StrictModel):
 
 class MemoryImpact(StrictModel):
     recalled_count: int = Field(default=0, ge=0)
-    grounded_citation_count: int = Field(ge=0)
+    grounded_citation_count: int = Field(default=0, ge=0)
     highest_relevance: float | None = Field(default=None, ge=0, le=1)
     temporal_bias_applied: bool = False
     severity_tags_applied: list[str] = Field(default_factory=list)
