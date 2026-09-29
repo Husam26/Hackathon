@@ -7,6 +7,7 @@ from backend.schemas import (
     Alert,
     AnalysisResult,
     IncidentRecord,
+    MemoryImpact,
     RecallQuery,
     RecalledMemory,
 )
@@ -73,6 +74,13 @@ class SentinelOrchestrator:
             response=response,
             recalled_memories=memories,
             mental_model=mental_model,
+            memory_impact=MemoryImpact(
+                recalled_count=len(memories),
+                grounded_citation_count=len(response.cited_memory_ids),
+                highest_relevance=memories[0].recall_score if memories else None,
+                temporal_bias_applied=selected.recency != "all_history",
+                severity_tags_applied=selected.severity_tags(),
+            ),
         )
 
     async def resolve(self, incident: IncidentRecord) -> str:

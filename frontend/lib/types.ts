@@ -49,10 +49,19 @@ export interface SentinelResponse {
   escalation: string | null;
 }
 
+export interface MemoryImpact {
+  recalled_count: number;
+  grounded_citation_count: number;
+  highest_relevance: number | null;
+  temporal_bias_applied: boolean;
+  severity_tags_applied: string[];
+}
+
 export interface AnalysisResult {
   alert: Alert;
   response: SentinelResponse;
   recalled_memories: RecalledMemory[];
+  memory_impact: MemoryImpact;
   mental_model: {
     id: string;
     name: string;

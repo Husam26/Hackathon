@@ -146,11 +146,20 @@ class SentinelResponse(StrictModel):
     escalation: str | None = None
 
 
+class MemoryImpact(StrictModel):
+    recalled_count: int = Field(default=0, ge=0)
+    grounded_citation_count: int = Field(ge=0)
+    highest_relevance: float | None = Field(default=None, ge=0, le=1)
+    temporal_bias_applied: bool = False
+    severity_tags_applied: list[str] = Field(default_factory=list)
+
+
 class AnalysisResult(StrictModel):
     alert: Alert
     response: SentinelResponse
     recalled_memories: list[RecalledMemory] = Field(default_factory=list)
     mental_model: MentalModel | None = None
+    memory_impact: MemoryImpact = Field(default_factory=MemoryImpact)
 
 
 class ResolveIncidentRequest(StrictModel):

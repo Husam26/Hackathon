@@ -84,14 +84,17 @@ def build_services(settings: Settings) -> Services:
         if settings.gemini_api_key
         else None
     )
+    rules = RulesAnalyzer()
     if groq and gemini:
-        analyzer: IncidentAnalyzer = FallbackAnalyzer(groq, gemini)
+        analyzer: IncidentAnalyzer = FallbackAnalyzer(
+            FallbackAnalyzer(groq, gemini), rules
+        )
     elif groq:
-        analyzer = groq
+        analyzer = FallbackAnalyzer(groq, rules)
     elif gemini:
-        analyzer = gemini
+        analyzer = FallbackAnalyzer(gemini, rules)
     else:
-        analyzer = RulesAnalyzer()
+        analyzer = rules
     store = IncidentStore(settings.database_url)
     store.create()
     orchestrator = SentinelOrchestrator(

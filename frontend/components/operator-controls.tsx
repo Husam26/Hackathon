@@ -83,6 +83,7 @@ export function OperatorControls({
             {severities.map((severity) => <button className={`${styles.chip} ${preferences.severities.includes(severity) ? styles.chipActive : ""}`} key={severity} onClick={() => toggleSeverity(severity)} type="button">{severity}</button>)}
           </div>
           <p>Recency is sent to Hindsight as a temporal window; severity selections are sent as retrieval tags. They bias recall while Hindsight remains the semantic engine.</p>
+          {active && <div className={styles.result}>Memory impact: {active.memory_impact.recalled_count} recalled · {active.memory_impact.grounded_citation_count} grounded citations · {active.memory_impact.highest_relevance !== null ? `${Math.round(active.memory_impact.highest_relevance * 100)}% top relevance` : "no historical match"}</div>}
         </article>
         <article className={styles.card}>
           <span className="eyebrow">Proof of memory</span>
