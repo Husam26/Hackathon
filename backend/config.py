@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     hindsight_base_url: str = "https://api.hindsight.vectorize.io"
     hindsight_bank_id: str = "acme-sre"
     hindsight_mental_model_id: str = "checkout-redis-pattern"
+    github_repository_url: str = "https://github.com/Husam26/Hackathon"
     request_timeout_seconds: float = Field(default=30, gt=0, le=120)
 
     @property
