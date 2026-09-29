@@ -8,7 +8,7 @@ production action occurs without a human approval gate.
 
 ## Before judges arrive
 
-1. Start the backend and frontend, then open `http://127.0.0.1:3000`.
+1. Start the backend and frontend, then open `http://127.0.0.1:3000/demo`.
 2. Confirm the header says **Command channel online** and shows `hindsight / groq`
    (or the active configured provider chain).
 3. Use **Reset memory** only on a dedicated demo Hindsight bank. It clears that bank.
@@ -81,3 +81,44 @@ for subsequent recall.
 - **Manual intake** calls POST /api/incidents/manual/analyze. Sentinel analyzes the alert against existing memory first, then retains the documented resolved incident. This preserves an honest first analysis and avoids citing the record that was just submitted.
 - In **Incident ledger**, select an existing record and choose **Open full analysis & enterprise handoffs**. It calls the historical replay endpoint, surfaces current memory evidence, and enables Teams export, a pre-filled GitHub Issue handoff, the confirmation-gated runbook, and related Issue/PR/runbook navigation.
 - The GitHub control intentionally opens the repository's **new Issue** page with the incident reference pre-filled. It does not create an issue or trigger a rollback.
+
+## Current workspace walkthrough
+
+The navbar exposes two purpose-built routes:
+
+- `/demo` is the guided five-step learning curve. Click **Reset demo**, advance from cold triage to retained memory, and show the Before vs. After Memory comparison.
+- `/manual` is the operator workflow. Submit a manual incident or Azure Monitor Common Alert Schema payload through `POST /api/incidents/manual/analyze`; the result opens the same complete workspace before retention.
+
+For either workspace, demonstrate **Proof of memory**, **Hindsight retrieval controls**, **Live command thread**, **Hindsight evidence**, **Incident ledger**, **Enterprise handoffs**, and **resolution velocity**. Use the recency selector (Past 30 Days, Past Quarter, All History) and Sev-1/Sev-2 controls to explain that Hindsight is biased with temporal/tag constraints while semantic retrieval remains active.
+
+## Historical replay and integrations
+
+In the Incident ledger, select a previous incident and choose **Open full analysis & enterprise handoffs**. This calls `POST /api/incidents/{incident_id}/analyze` and reloads current evidence, commands, artifacts, and handoffs. Artifact cards link related JIRA issues, PRs, runbooks, GitHub hotfix Issues, and adjacent incident references.
+
+The Azure Monitor button promotes its response into the active workspace. **Open GitHub hotfix issue** opens a prefilled repository Issue; it does not create or merge anything. **Export Incident Brief to Microsoft Teams** creates a Teams-ready handoff payload. **Verify & Execute** always requires explicit human confirmation and never runs production commands automatically.
+
+## Architecture proof
+
+The backend delivery layer is organized under `backend/http/routes`, with workflow diagrams in `backend/workflows`. Verify the generated diagrams while the API is running:
+
+```powershell
+$workflow = Invoke-RestMethod http://127.0.0.1:8001/api/architecture/workflow
+$workflow.sequence_diagram.StartsWith('sequenceDiagram')
+$workflow.architecture_flowchart.StartsWith('flowchart TD')
+```
+
+The workflow includes Azure/manual intake, schema validation, Hindsight recall, Groq-to-Gemini-to-rules reasoning fallback, citation validation, canonical persistence, retention, and enterprise handoffs.
+
+## Final presenter checklist
+
+- [ ] `/demo` and `/manual` load; root redirects to `/demo`.
+- [ ] Demo reset and learning-curve steps show cold versus memory-grounded triage.
+- [ ] Memory cards expose evidence, scores, and citation reasoning.
+- [ ] Recency and severity controls visibly affect requested context.
+- [ ] Manual analysis renders the full workspace before retention.
+- [ ] Azure Monitor promotes into the active workspace.
+- [ ] Historical replay exposes enterprise handoffs and artifact navigation.
+- [ ] GitHub hotfix opens a prefilled Issue and Teams produces a brief.
+- [ ] Runbook action requires human verification.
+- [ ] `/api/architecture/workflow` returns both Mermaid diagrams.
+- [ ] Backend and frontend verification commands are green.
