@@ -24,8 +24,27 @@ import { OperatorControls } from "@/components/operator-controls";
 import { MttrChart } from "@/components/mttr-chart";
 import { sentinelApi } from "@/lib/api";
 import { formatMetric, formatPercent, humanize } from "@/lib/format";
-import type { DemoStatus, DemoStep, Health, MemoryPreferences, RecalledMemory } from "@/lib/types";
+import type { AnalysisResult, ArtifactLink, DemoStatus, DemoStep, Health, Incident, IncidentAnalysisRun, MemoryPreferences, RecalledMemory } from "@/lib/types";
 
+type ActiveRun = {
+  source: "demo" | "azure" | IncidentAnalysisRun["source"];
+  incident: Incident;
+  analysis: AnalysisResult;
+};
+
+function azureIncident(analysis: AnalysisResult): Incident {
+  return {
+    id: `AZURE-${Date.now()}`,
+    seq: Date.now(),
+    title: `Azure Monitor: ${analysis.alert.service}`,
+    mttr_minutes: null,
+    alert: analysis.alert,
+    root_cause: null,
+    mitigation: null,
+    retained_memory_id: null,
+    artifacts: { pr: null, runbook: null, jira: null },
+  };
+}
 const demoLabels = [
   "Founding incident",
   "Postgres decoy",
@@ -58,11 +77,13 @@ export function SentinelConsole() {
   const [health, setHealth] = useState<Health | null>(null);
   const [demoStatus, setDemoStatus] = useState<DemoStatus | null>(null);
   const [history, setHistory] = useState<DemoStep[]>([]);
+  const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
+  const [artifactLinks, setArtifactLinks] = useState<ArtifactLink[]>([]);
   const [memoryPreferences, setMemoryPreferences] = useState<MemoryPreferences>({ recency: "all_history", severities: [] });
   const [inspectedMemory, setInspectedMemory] = useState<RecalledMemory | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const active = history.at(-1) ?? null;
+  const active = activeRun;
   const demoPosition = demoStatus?.position ?? history.length;
   const demoTotal = demoStatus?.total_steps ?? 5;
 
@@ -81,6 +102,7 @@ export function SentinelConsole() {
     try {
       const result = await sentinelApi.step(memoryPreferences);
       setHistory((current) => [...current, result]);
+      setActiveRun({ source: "demo", incident: result.incident, analysis: result.analysis });
       setDemoStatus(await sentinelApi.demoStatus());
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "Unable to run the next incident.";
@@ -102,6 +124,8 @@ export function SentinelConsole() {
       await sentinelApi.reset();
       setHistory([]);
       setInspectedMemory(null);
+      setActiveRun(null);
+      setArtifactLinks([]);
       setDemoStatus({ position: 0, total_steps: 5, next_incident_id: "INC-1047" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to reset the demo.");
@@ -110,13 +134,21 @@ export function SentinelConsole() {
     }
   }, []);
 
-  const mttrValues = useMemo(
-    () => history.flatMap((item) => (item.incident.mttr_minutes ? [item.incident.mttr_minutes] : [])),
-    [history],
-  );
+  const mttrValues = useMemo(() => {
+    const values = history.flatMap((item) => (item.incident.mttr_minutes ? [item.incident.mttr_minutes] : []));
+    if (active?.source !== "demo" && active?.incident.mttr_minutes) values.push(active.incident.mttr_minutes);
+    return values;
+  }, [active, history]);
 
-  const response = active?.analysis.response;
-  const alert = active?.analysis.alert;
+  useEffect(() => {
+    if (!active || active.source === "azure") return;
+    let cancelled = false;
+    sentinelApi.incidentArtifacts(active.incident.id)
+      .then((links) => { if (!cancelled) setArtifactLinks(links); })
+      .catch(() => { if (!cancelled) setArtifactLinks([]); });
+    return () => { cancelled = true; };
+  }, [active]);
+  const response = active?.analysis.response;  const alert = active?.analysis.alert;
   const memories = active?.analysis.recalled_memories ?? [];
 
   return (
@@ -163,7 +195,7 @@ export function SentinelConsole() {
         </div>
       )}
 
-      <OperatorControls preferences={memoryPreferences} onPreferencesChange={setMemoryPreferences} active={active?.analysis ?? null} incidentId={active?.incident.id ?? null} />
+      <OperatorControls preferences={memoryPreferences} onPreferencesChange={setMemoryPreferences} active={active?.analysis ?? null} incidentId={active?.incident.id ?? null} onAnalysis={(analysis) => setActiveRun({ source: "azure", incident: azureIncident(analysis), analysis })} />
 
       <section className="metric-row">
         <div className="metric-card">
@@ -253,7 +285,12 @@ export function SentinelConsole() {
                   {response?.recommended_mitigation && (
                     <div className="action-card"><CheckCircle2 size={18} /><div><span>Recommended action</span><p>{response.recommended_mitigation}</p></div></div>
                   )}
-                  {response?.escalation && (
+                  {active?.source !== "azure" && artifactLinks.length > 0 && (
+                    <div className="artifact-navigation">
+                      <span>Related navigation</span>
+                      {artifactLinks.map((link) => <a href={link.url} key={link.url} rel="noreferrer" target="_blank">{link.label}</a>)}
+                    </div>
+                  )}                  {response?.escalation && (
                     <div className="escalation"><AlertTriangle size={18} /><p>{response.escalation}</p></div>
                   )}
                 </div>
@@ -283,7 +320,7 @@ export function SentinelConsole() {
         </aside>
       </div>
 
-      <IncidentWorkbench refreshKey={demoPosition} />
+      <IncidentWorkbench refreshKey={demoPosition} onRun={(run) => setActiveRun(run)} />
 
       <footer>
         <span>Sentinel v{health?.version ?? "0.1.0"}</span>

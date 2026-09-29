@@ -18,14 +18,17 @@ from fastapi import (
 from backend.demo import DemoStatus, DemoStepResult
 from backend.groq_client import RulesAnalyzer
 from backend.integrations import (
+    ArtifactLink,
     AzureMonitorWebhook,
     IntegrationLink,
     RunbookVerification,
     RunbookVerificationRequest,
     TeamsExport,
     github_hotfix_link,
+    incident_artifact_links,
     teams_export,
 )
+from backend.incident_runs import IncidentAnalysisRun
 from backend.manual_incident import ManualIncidentRequest, build_manual_incident
 from backend.memory_preferences import AnalysisRequest, MemoryPreferences
 from backend.schemas import Alert, AnalysisResult, HealthResponse, IncidentRecord
@@ -143,6 +146,67 @@ async def create_manual_incident(
     incident = build_manual_incident(payload)
     memory_id = await services_from(request).orchestrator.resolve(incident)
     return incident.model_copy(update={"retained_memory_id": memory_id})
+
+
+@router.post(
+    "/incidents/manual/analyze",
+    response_model=IncidentAnalysisRun,
+    status_code=status.HTTP_201_CREATED,
+    tags=["incidents"],
+)
+async def analyze_manual_incident(
+    payload: ManualIncidentRequest, request: Request
+) -> IncidentAnalysisRun:
+    """Analyze existing memory first, then retain the newly documented incident."""
+    services = services_from(request)
+    incident = build_manual_incident(payload)
+    analysis = await services.orchestrator.analyze(incident.alert)
+    memory_id = await services.orchestrator.resolve(incident)
+    persisted = incident.model_copy(update={"retained_memory_id": memory_id})
+    return IncidentAnalysisRun(source="manual", incident=persisted, analysis=analysis)
+
+
+@router.post(
+    "/incidents/{incident_id}/analyze",
+    response_model=IncidentAnalysisRun,
+    tags=["incidents"],
+)
+async def analyze_historical_incident(
+    incident_id: str, request: Request
+) -> IncidentAnalysisRun:
+    services = services_from(request)
+    incident = services.store.get(incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident {incident_id} was not found."
+        )
+    analysis = await services.orchestrator.analyze(incident.alert)
+    return IncidentAnalysisRun(
+        source="historical", incident=incident, analysis=analysis
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/artifacts",
+    response_model=list[ArtifactLink],
+    tags=["incidents", "integrations"],
+)
+async def historical_artifacts(
+    incident_id: str, request: Request
+) -> list[ArtifactLink]:
+    services = services_from(request)
+    incident = services.store.get(incident_id)
+    if incident is None:
+        raise HTTPException(
+            status_code=404, detail=f"Incident {incident_id} was not found."
+        )
+    hotfix = github_hotfix_link(incident.id, services.settings.github_repository_url)
+    return [
+        ArtifactLink(label=hotfix.label, url=hotfix.url, kind="github_issue"),
+        *incident_artifact_links(
+            incident.artifacts, services.settings.github_repository_url
+        ),
+    ]
 
 
 @router.get("/incidents", response_model=list[IncidentRecord], tags=["incidents"])

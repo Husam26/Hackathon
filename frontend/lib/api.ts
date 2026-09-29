@@ -1,4 +1,4 @@
-import type { AnalysisResult, Alert, DemoStatus, DemoStep, Health, Incident, ManualIncidentInput, MemoryPreferences } from "@/lib/types";
+import type { AnalysisResult, Alert, ArtifactLink, DemoStatus, DemoStep, Health, Incident, IncidentAnalysisRun, ManualIncidentInput, MemoryPreferences } from "@/lib/types";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
@@ -63,6 +63,9 @@ export const sentinelApi = {
   verifyRunbook: (payload: { incident_id: string; action: "rollback_payments" | "restart_checkout"; confirmed_by_human: boolean }) => request<{ status: string; message: string; audit_note: string }>("/api/runbooks/verify", { method: "POST", body: JSON.stringify(payload) }),
   reset: () => request<void>("/api/demo/reset", { method: "POST" }),
   incidents: () => request<Incident[]>("/api/incidents"),
+  analyzeManualIncident: (payload: ManualIncidentInput) => request<IncidentAnalysisRun>("/api/incidents/manual/analyze", { method: "POST", body: JSON.stringify(payload) }),
+  analyzeHistoricalIncident: (incidentId: string) => request<IncidentAnalysisRun>(`/api/incidents/${incidentId}/analyze`, { method: "POST" }),
+  incidentArtifacts: (incidentId: string) => request<ArtifactLink[]>(`/api/incidents/${incidentId}/artifacts`),
   createManualIncident: (payload: ManualIncidentInput) =>
     request<Incident>("/api/incidents/manual", {
       method: "POST",

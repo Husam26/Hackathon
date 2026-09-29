@@ -13,16 +13,19 @@ export function OperatorControls({
   onPreferencesChange,
   active,
   incidentId,
+  onAnalysis,
 }: {
   preferences: MemoryPreferences;
   onPreferencesChange: (value: MemoryPreferences) => void;
   active: AnalysisResult | null;
   incidentId: string | null;
+  onAnalysis: (analysis: AnalysisResult, source: "azure") => void;
 }) {
   const [cold, setCold] = useState<string | null>(null);
   const [integration, setIntegration] = useState<string | null>(null);
   const [azurePayload, setAzurePayload] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [azureBusy, setAzureBusy] = useState(false);
 
   const toggleSeverity = (severity: (typeof severities)[number]) => {
     const next = preferences.severities.includes(severity)
@@ -48,7 +51,7 @@ export function OperatorControls({
     if (!incidentId) return;
     const link = await sentinelApi.githubHotfix(incidentId);
     window.open(link.url, "_blank", "noopener,noreferrer");
-    setIntegration("Opened a reviewed GitHub hotfix handoff. Sentinel did not execute a rollback.");
+    setIntegration("Opened a pre-filled GitHub Issue handoff. Sentinel did not execute a rollback.");
   };
 
   const verifyRunbook = async () => {
@@ -62,11 +65,15 @@ export function OperatorControls({
   };
 
   const ingestAzure = async () => {
+    setAzureBusy(true);
     try {
       const result = await sentinelApi.azureMonitor(JSON.parse(azurePayload));
-      setIntegration(`Azure Monitor alert analyzed: ${result.response.summary}`);
+      onAnalysis(result, "azure");
+      setIntegration("Azure Monitor alert analyzed and opened in the live command thread.");
     } catch (error) {
       setIntegration(error instanceof Error ? error.message : "Invalid Azure Monitor payload.");
+    } finally {
+      setAzureBusy(false);
     }
   };
 
@@ -96,7 +103,7 @@ export function OperatorControls({
           <h2>Human-gated response workflow</h2>
           <div className={styles.row}>
             <button className={`button secondary ${styles.smallButton}`} disabled={!active} onClick={exportTeams} type="button">Export brief to Teams</button>
-            <button className={`button secondary ${styles.smallButton}`} disabled={!incidentId} onClick={openGitHub} type="button">Open GitHub hotfix</button>
+            <button className={`button secondary ${styles.smallButton}`} disabled={!incidentId} onClick={openGitHub} type="button">Open GitHub hotfix issue</button>
           </div>
           <label className={styles.check}><input checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} type="checkbox" /> Human approval recorded</label>
           <button className={`button primary ${styles.smallButton}`} disabled={!incidentId} onClick={verifyRunbook} type="button">Verify &amp; execute approved runbook</button>
@@ -108,7 +115,7 @@ export function OperatorControls({
         <span className="eyebrow">Azure Monitor intake</span>
         <h2>Paste Azure Monitor Common Alert Schema</h2>
         <textarea className={styles.textarea} placeholder='{"data":{"essentials":{"alertRule":"checkout latency","severity":"Sev2"}}}' value={azurePayload} onChange={(event) => setAzurePayload(event.target.value)} />
-        <button className={`button secondary ${styles.smallButton}`} disabled={!azurePayload} onClick={ingestAzure} type="button">Analyze Azure Monitor alert</button>
+        <button className={`button secondary ${styles.smallButton}`} disabled={!azurePayload || azureBusy} onClick={ingestAzure} type="button">{azureBusy ? "Analyzing Azure alert" : "Analyze Azure Monitor alert"}</button>
       </article>
     </section>
   );

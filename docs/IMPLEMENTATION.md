@@ -25,7 +25,9 @@ Set `HINDSIGHT_BASE_URL=http://localhost:8888` to use a local Hindsight deployme
 - `store.py` persists canonical incident records and retained-memory IDs in SQLite.
 - `orchestrator.py` builds the recall query, retrieves evidence, conditionally loads the configured mental model, and invokes analysis.
 - `demo.py` replays only incidents 1–5. Each alert is analyzed before its resolution is retained, preserving the learning curve.
-- `main.py` exposes REST controls and a WebSocket analysis endpoint.
+- `services.py` composes providers, `app_factory.py` owns lifecycle/CORS, `api.py` exposes REST and WebSocket delivery, and `main.py` remains the Uvicorn compatibility entrypoint.
+- `incident_runs.py` defines the shared manual and historical analysis-run contract. Manual analysis retrieves existing evidence before retaining the new resolved incident, preventing self-citation from inflating the first response.
+- `resilience.py` mirrors successful Hindsight retains locally and falls back safely for recall; a failed remote-bank reset returns an explicit 503 rather than claiming success.
 
 The current Hindsight API uses `types` in recall requests. Mental models are explicitly created with a stable ID; they are not an implicit unscoped summary. Sentinel creates `checkout-redis-pattern` during seeding and only supplies a mental model to analysis when at least two relevant memories were recalled, preventing stale context from contaminating a cold reset.
 
@@ -35,7 +37,11 @@ The current Hindsight API uses `types` in recall requests. Mental models are exp
 |---|---|---|
 | `GET` | `/api/health` | Status, version, and active provider modes |
 | `POST` | `/api/analyze` | Analyze an arbitrary validated alert |
+| `POST` | `/api/integrations/azure-monitor` | Convert Azure Monitor Common Alert Schema into a standard analysis result |
 | `POST` | `/api/incidents` | Retain and persist a resolved incident |
+| `POST` | `/api/incidents/manual/analyze` | Analyze a manual incident, then retain it and return one complete workspace run |
+| `POST` | `/api/incidents/{incident_id}/analyze` | Reopen a previous incident in the full Hindsight analysis workspace |
+| `GET` | `/api/incidents/{incident_id}/artifacts` | Navigable GitHub Issue, PR, runbook, and related-issue references |
 | `GET` | `/api/incidents` | List canonical resolved incidents |
 | `POST` | `/api/demo/reset` | Clear demo memory and SQLite state |
 | `POST` | `/api/demo/step` | Analyze, return, and retain the next scripted incident |

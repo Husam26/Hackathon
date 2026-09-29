@@ -1,8 +1,9 @@
 export type Classification = "KNOWN_PATTERN" | "NOVEL";
+export type Severity = "SEV-1" | "SEV-2" | "SEV-3" | "SEV-4";
 
 export interface MemoryPreferences {
   recency: "past_30_days" | "past_quarter" | "all_history";
-  severities: ("SEV-1" | "SEV-2" | "SEV-3" | "SEV-4")[];
+  severities: Severity[];
 }
 
 export interface Health {
@@ -14,7 +15,7 @@ export interface Health {
 export interface Alert {
   service: string;
   fired_at: string;
-  severity: string;
+  severity: Severity;
   metrics: Record<string, number>;
   signals: string[];
   recent_deploys: { service: string; version: string; at: string }[];
@@ -75,12 +76,18 @@ export interface AnalysisResult {
 export interface ManualIncidentInput {
   title: string;
   service: string;
-  severity: "SEV-1" | "SEV-2" | "SEV-3" | "SEV-4";
+  severity: Severity;
   occurred_at?: string;
   signals: string[];
   root_cause: string;
   mitigation: string;
   mttr_minutes?: number;
+}
+
+export interface IncidentArtifacts {
+  pr: string | null;
+  runbook: string | null;
+  jira: string | null;
 }
 
 export interface Incident {
@@ -92,6 +99,19 @@ export interface Incident {
   root_cause: string | null;
   mitigation: string | null;
   retained_memory_id: string | null;
+  artifacts: IncidentArtifacts;
+}
+
+export interface IncidentAnalysisRun {
+  source: "manual" | "historical";
+  incident: Incident;
+  analysis: AnalysisResult;
+}
+
+export interface ArtifactLink {
+  label: string;
+  url: string;
+  kind: "github_issue" | "pull_request" | "runbook" | "issue_search";
 }
 
 export interface DemoStatus {

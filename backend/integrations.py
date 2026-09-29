@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Literal
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.schemas import Alert, AnalysisResult
+from backend.schemas import Alert, AnalysisResult, Artifacts
 
 
 class AzureMonitorWebhook(BaseModel):
@@ -48,6 +48,12 @@ class IntegrationLink(BaseModel):
     incident_id: str
 
 
+class ArtifactLink(BaseModel):
+    label: str
+    url: str
+    kind: Literal["github_issue", "pull_request", "runbook", "issue_search"]
+
+
 class TeamsExport(BaseModel):
     title: str
     markdown: str
@@ -79,10 +85,44 @@ def github_hotfix_link(incident_id: str, repository_url: str) -> IntegrationLink
         }
     )
     return IntegrationLink(
-        label="Open GitHub hotfix handoff",
+        label="Open GitHub hotfix issue",
         url=f"{base}/issues/new?{query}",
         incident_id=incident_id,
     )
+
+
+def incident_artifact_links(
+    artifacts: Artifacts, repository_url: str
+) -> list[ArtifactLink]:
+    """Build navigable references without assuming a Jira tenant is public."""
+    base = repository_url.rstrip("/")
+    links: list[ArtifactLink] = []
+    if artifacts.jira:
+        links.append(
+            ArtifactLink(
+                label=f"Search GitHub issues for {artifacts.jira}",
+                url=f"{base}/issues?q={quote(artifacts.jira, safe='')}",
+                kind="issue_search",
+            )
+        )
+    if artifacts.pr:
+        number = artifacts.pr.removeprefix("PR-")
+        links.append(
+            ArtifactLink(
+                label=f"Open PR reference {artifacts.pr}",
+                url=f"{base}/pull/{quote(number, safe='')}",
+                kind="pull_request",
+            )
+        )
+    if artifacts.runbook:
+        links.append(
+            ArtifactLink(
+                label=f"Open runbook {artifacts.runbook}",
+                url=f"{base}/blob/main/{quote(artifacts.runbook, safe='/')}",
+                kind="runbook",
+            )
+        )
+    return links
 
 
 def teams_export(analysis: AnalysisResult, incident_id: str) -> TeamsExport:

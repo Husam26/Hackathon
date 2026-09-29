@@ -74,3 +74,10 @@ for subsequent recall.
 - Hindsight temporal windows bias temporal retrieval and ranking; semantic retrieval
   remains active, which is why the UI calls the control a bias rather than an absolute
   filter.
+
+## Unified manual and Azure workspace
+
+- **Azure Monitor intake** now opens its parsed result in the same Live command thread, Memory evidence, Memory Impact, resolution-velocity, Teams, GitHub Issue, and runbook-safety workspace as a scripted demo incident.
+- **Manual intake** calls POST /api/incidents/manual/analyze. Sentinel analyzes the alert against existing memory first, then retains the documented resolved incident. This preserves an honest first analysis and avoids citing the record that was just submitted.
+- In **Incident ledger**, select an existing record and choose **Open full analysis & enterprise handoffs**. It calls the historical replay endpoint, surfaces current memory evidence, and enables Teams export, a pre-filled GitHub Issue handoff, the confirmation-gated runbook, and related Issue/PR/runbook navigation.
+- The GitHub control intentionally opens the repository's **new Issue** page with the incident reference pre-filled. It does not create an issue or trigger a rollback.
