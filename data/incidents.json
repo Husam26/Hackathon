@@ -223,7 +223,69 @@
         "tags": ["service:payments-service", "root-cause:certificate-expiry", "symptom:5xx", "severity:sev-1", "status:resolved", "jira:SEC-228"]
       }
     }
-  ],
+,
+    {
+      "id": "INC-1096",
+      "seq": 92,
+      "title": "Azure Monitor checkout latency signal after payments v2.6",
+      "is_recurring_spine": true,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-09-30T02:16:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 3600, "error_rate_5xx": 0.13, "rps": 4700 },
+        "signals": ["Azure Monitor: checkout-service high latency", "p99 latency 3.6s", "Redis pool wait time rising"],
+        "recent_deploys": [{ "service": "payments-service", "version": "v2.6", "at": "2026-09-30T01:57:00Z" }]
+      },
+      "timeline": [
+        { "at": "02:16", "event": "Azure Monitor Common Alert Schema received by Sentinel" },
+        { "at": "02:18", "event": "Hindsight recalled the Redis exhaustion learning curve" },
+        { "at": "02:22", "event": "Payments rollback reviewed through the human-gated handoff" }
+      ],
+      "root_cause": "Payments-service v2.6 again exhausted the shared Redis connection capacity used by checkout-service.",
+      "contributing_factors": ["Nightly settlement batch increased connection pressure.", "JIRA-891 remained unresolved."],
+      "mitigation": "Prepare a reviewed payments rollback and restart checkout-service only after human confirmation.",
+      "permanent_fix": { "status": "open", "ref": "JIRA-891", "desc": "Ship the bounded Redis connection pool and acquisition timeout." },
+      "mttr_minutes": 8,
+      "artifacts": { "pr": "PR-2250", "runbook": "runbooks/azure-checkout-latency.md", "jira": "JIRA-891" },
+      "retain": {
+        "content": "INCIDENT INC-1096 (RESOLVED). Azure Monitor reported checkout-service high latency at 02:16 UTC after payments-service v2.6 deployed. ROOT CAUSE: the recurring Redis connection exhaustion pattern during settlement traffic. MITIGATION THAT WORKED: prepare a reviewed payments rollback and restart checkout only after human approval. MTTR: 8 minutes. JIRA-891 remained open.",
+        "context": "SRE production incident imported from Azure Monitor Common Alert Schema. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-09-30T02:16:00Z",
+        "tags": ["service:checkout-service", "trigger:payments-service-deploy", "root-cause:redis-pool-exhaustion", "symptom:high-latency", "symptom:5xx", "time-window:overnight-batch", "severity:sev-2", "status:resolved", "source:azure-monitor", "jira:JIRA-891"]
+      }
+    },
+    {
+      "id": "INC-1102",
+      "seq": 93,
+      "title": "Manual checkout cache-capacity regression",
+      "is_recurring_spine": false,
+      "alert": {
+        "service": "checkout-service",
+        "fired_at": "2026-10-01T11:08:00Z",
+        "severity": "SEV-2",
+        "metrics": { "p99_latency_ms": 2900, "cache_hit_ratio": 0.18, "origin_cpu_percent": 88 },
+        "signals": ["cache hit ratio collapsed", "p99 latency 2.9s", "origin CPU 88%"],
+        "recent_deploys": [{ "service": "checkout-service", "version": "v4.12", "at": "2026-10-01T10:51:00Z" }]
+      },
+      "timeline": [
+        { "at": "11:08", "event": "On-call engineer documented the resolved incident in Manual intake" },
+        { "at": "11:14", "event": "Cache capacity configuration rollback reviewed" },
+        { "at": "11:26", "event": "Hot keys warmed and checkout latency recovered" }
+      ],
+      "root_cause": "A checkout cache-capacity configuration rollout evicted hot keys and saturated the origin service.",
+      "contributing_factors": ["No cache-capacity canary was required before production rollout."],
+      "mitigation": "Restore the previous cache capacity, warm checkout hot keys, and add a canary guardrail.",
+      "permanent_fix": { "status": "in_progress", "ref": "CACHE-219", "desc": "Add cache-capacity canary checks and rollback thresholds." },
+      "mttr_minutes": 18,
+      "artifacts": { "pr": "PR-2259", "runbook": "runbooks/cache-capacity.md", "jira": "CACHE-219" },
+      "retain": {
+        "content": "INCIDENT INC-1102 (RESOLVED). checkout-service cache hit ratio collapsed to 18% after v4.12 configuration rollout. ROOT CAUSE: reduced cache capacity evicted hot keys and saturated origin CPU. MITIGATION THAT WORKED: restore capacity and warm checkout keys. MTTR: 18 minutes. PERMANENT FIX: CACHE-219 canary guardrail in progress.",
+        "context": "SRE production incident entered through Sentinel Manual intake. Environment: prod. Severity: SEV-2.",
+        "timestamp": "2026-10-01T11:08:00Z",
+        "tags": ["service:checkout-service", "trigger:cache-capacity-rollout", "root-cause:cache-capacity-regression", "symptom:high-latency", "severity:sev-2", "status:resolved", "source:manual-intake", "jira:CACHE-219"]
+      }
+    }  ],
   "world_facts": [
     {
       "content": "Northwind Pay's nightly settlement batch starts at 02:00 UTC and increases load on the Redis cluster shared by checkout-service and payments-service.",
