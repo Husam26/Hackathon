@@ -21,6 +21,7 @@ from backend.gemini_client import FallbackAnalyzer, GeminiAnalyzer
 from backend.groq_client import GroqAnalyzer, IncidentAnalyzer, RulesAnalyzer
 from backend.manual_incident import ManualIncidentRequest, build_manual_incident
 
+from backend.memory_preferences import AnalysisRequest, MemoryPreferences
 from backend.memory_client import (
     HindsightMemoryClient,
     LocalMemoryClient,
@@ -129,6 +130,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def analyze(alert: Alert, request: Request) -> AnalysisResult:
         return await request.app.state.services.orchestrator.analyze(alert)
 
+    @app.post("/api/analyze/with-preferences", response_model=AnalysisResult)
+    async def analyze_with_preferences(
+        payload: AnalysisRequest, request: Request
+    ) -> AnalysisResult:
+        return await request.app.state.services.orchestrator.analyze(
+            payload.alert, payload.memory_preferences
+        )
+
     @app.post("/api/incidents", status_code=status.HTTP_201_CREATED)
     async def resolve(incident: IncidentRecord, request: Request) -> dict[str, str]:
         memory_id = await request.app.state.services.orchestrator.resolve(incident)
@@ -159,9 +168,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await request.app.state.services.demo.reset()
 
     @app.post("/api/demo/step", response_model=DemoStepResult)
-    async def step_demo(request: Request) -> DemoStepResult:
+    async def step_demo(
+        request: Request, preferences: MemoryPreferences | None = None
+    ) -> DemoStepResult:
         try:
-            return await request.app.state.services.demo.step()
+            return await request.app.state.services.demo.step(preferences)
         except IndexError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

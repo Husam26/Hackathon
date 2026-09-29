@@ -2,7 +2,14 @@
 
 from backend.groq_client import IncidentAnalyzer
 from backend.memory_client import MemoryProvider
-from backend.schemas import Alert, AnalysisResult, IncidentRecord, RecallQuery
+from backend.memory_preferences import MemoryPreferences
+from backend.schemas import (
+    Alert,
+    AnalysisResult,
+    IncidentRecord,
+    RecallQuery,
+    RecalledMemory,
+)
 from backend.store import IncidentStore
 
 
@@ -33,15 +40,28 @@ class SentinelOrchestrator:
             f"signals: {', '.join(alert.signals)}; recent deploys: {deploys}"
         )
 
-    async def analyze(self, alert: Alert) -> AnalysisResult:
-        memories = await self.memory.recall(
-            RecallQuery(
+    async def analyze(
+        self, alert: Alert, preferences: MemoryPreferences | None = None
+    ) -> AnalysisResult:
+        selected = preferences or MemoryPreferences()
+        base_tags = [f"service:{alert.service}"]
+        severity_tags = selected.severity_tags() or [None]
+        recalled: dict[str, RecalledMemory] = {}
+        for severity_tag in severity_tags:
+            query = RecallQuery(
                 query=self.build_query(alert),
-                tags=[f"service:{alert.service}"],
+                tags=base_tags + ([severity_tag] if severity_tag else []),
                 fact_types=["experience", "world", "observation"],
                 limit=8,
+                temporal_window=selected.temporal_window(alert.fired_at),
             )
-        )
+            for memory in await self.memory.recall(query):
+                existing = recalled.get(memory.id)
+                if existing is None or memory.recall_score > existing.recall_score:
+                    recalled[memory.id] = memory
+        memories = sorted(
+            recalled.values(), key=lambda memory: memory.recall_score, reverse=True
+        )[:8]
         mental_model = (
             await self.memory.get_mental_model(self.mental_model_id)
             if len(memories) >= 2

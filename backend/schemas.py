@@ -114,6 +114,7 @@ class RecallQuery(StrictModel):
         default_factory=lambda: ["experience", "world"]
     )
     limit: int = Field(default=5, ge=1, le=20)
+    temporal_window: dict[str, str] | None = None
 
 
 class MentalModel(StrictModel):

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from backend.memory_preferences import MemoryPreferences
 from backend.orchestrator import SentinelOrchestrator
 from backend.schemas import AnalysisResult, IncidentCorpus, IncidentRecord
 
@@ -53,11 +54,13 @@ class DemoController:
         self.orchestrator.store.clear()
         self.position = 0
 
-    async def step(self) -> DemoStepResult:
+    async def step(
+        self, preferences: MemoryPreferences | None = None
+    ) -> DemoStepResult:
         if self.position >= len(self.incidents):
             raise IndexError("demo is complete; reset before requesting another step")
         incident = self.incidents[self.position]
-        analysis = await self.orchestrator.analyze(incident.alert)
+        analysis = await self.orchestrator.analyze(incident.alert, preferences)
         await self.orchestrator.resolve(incident)
         self.position += 1
         return DemoStepResult(

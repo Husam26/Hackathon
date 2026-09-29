@@ -66,8 +66,14 @@ class LocalMemoryClient:
         for memory in self._memories.values():
             if memory.fact_type not in requested_types:
                 continue
-            if query.tags and not set(query.tags).intersection(memory.tags):
+            if query.tags and not set(query.tags).issubset(memory.tags):
                 continue
+            if query.temporal_window and memory.timestamp:
+                start = datetime.fromisoformat(query.temporal_window["start"])
+                end = datetime.fromisoformat(query.temporal_window["end"])
+                timestamp = memory.timestamp.astimezone(timezone.utc)
+                if not start <= timestamp <= end:
+                    continue
             overlap = len(query_tokens & _tokens(memory.content)) / max(
                 len(query_tokens), 1
             )
@@ -164,6 +170,8 @@ class HindsightMemoryClient:
             "tags": query.tags,
             "tags_match": "all_strict",
             "types": query.fact_types,
+            "temporal_window": query.temporal_window,
+            "query_timestamp": datetime.now(timezone.utc).isoformat(),
             "max_tokens": 4096,
         }
         for attempt in range(3):
